@@ -7,19 +7,14 @@ const Navbar = () => {
   const [userName,setUserName] = useState('')
 
   useEffect(() => {
-    const storedName = localStorage.getItem('adminName');
-    if (storedName) {
-      if(storedName === 'hamdi') {
-        setUserName('حمدي العماري')
-      } else if (storedName === 'iyad') {
-        setUserName('اياد المحمدي')
-      }
-    }
+    const storedName = localStorage.getItem('adminDahboardName');
+    setUserName(storedName)
   }, []);
 
   const logoutHandler = () => {
-    localStorage.removeItem('adminLoggedIn');
-    localStorage.removeItem('adminName');
+    localStorage.removeItem('adminLoggedIn')
+    localStorage.removeItem('adminName')
+    localStorage.removeItem('adminDahboardName')
     router.push('/login');
   }
   return (

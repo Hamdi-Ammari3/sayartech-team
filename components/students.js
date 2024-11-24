@@ -4,27 +4,52 @@ import { DB } from '../firebaseConfig'
 import ClipLoader from "react-spinners/ClipLoader"
 import { useGlobalState } from '../globalState'
 import { BsArrowLeftShort } from "react-icons/bs"
-import { CiEdit } from "react-icons/ci";
+import { CiEdit } from "react-icons/ci"
 
 const Students = () => {
-  const [searchTerm, setSearchTerm] = useState('')
+  const [nameFilter,setNameFilter] = useState('')
+  const [schoolFilter,setSchoolFilter] = useState('')
+  const [hasDriverFilter,setHasDriverFilter] = useState('')
   const [selectedStudent,setSelectedStudent] = useState(null)
   const [driverInfo, setDriverInfo] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
   const [newStudentCarType,setNewStudentCarType] = useState('')
   const [loading,setLoading] = useState(false)
 
-  const { students,drivers } = useGlobalState()
+  const { students,drivers,schools } = useGlobalState()
 
   // Filtered students based on search term
-  const filteredStudents = students.filter((student) =>
-    student.student_full_name.includes(searchTerm)
-  );
+  const filteredStudents = students.filter((student) =>{
+    //check name
+    const matchesName = nameFilter === '' || student.student_full_name.includes(nameFilter)
 
-  // Handle search input change
-  const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value)
-  }
+    //check school
+    const matchesSchool = schoolFilter === '' || student.student_school === schoolFilter;
+
+    //check he has a driver or not
+    const matchesDriver = 
+    hasDriverFilter === '' || 
+    (hasDriverFilter === 'true' && student.driver_id) || 
+    (hasDriverFilter === 'false' && !student.driver_id);
+
+    // Return only students matching all filters
+    return matchesName && matchesSchool && matchesDriver;
+  });
+
+  // Handle student name change
+  const handleNameFilterChange = (event) => {
+    setNameFilter(event.target.value);
+  };
+
+  // Handle student school change
+  const handleSchoolChange = (e) => {
+    setSchoolFilter(e.target.value);
+  };
+
+  // Handle student has driver change
+  const handleHasDriverChange = (e) => {
+    setHasDriverFilter(e.target.value);
+  };
 
   // Select the student
   const selectStudent = async (student) => {
@@ -65,9 +90,9 @@ const Students = () => {
   }, [selectedStudent, drivers]);
 
   const carTypes = [
-    'سيارة خاصة صالون ',
-    'سيارة خاصة ٧ راكب ',
-    'ستاركس ',
+    'سيارة صالون ٥ راكب',
+    'سيارة خاصة ٧ راكب',
+    'ستاركس',
     'باص صغير ١٢ راكب',
     'باص متوسط ١٤ راكب',
     'باص كبير ٣٠ راكب',
@@ -109,17 +134,21 @@ const Students = () => {
     <div className='white_card-section-container'>
       {selectedStudent ? (
         <>
-          <button className="info-details-back-button" onClick={goBack}>
-            <BsArrowLeftShort size={24} className="email-back-button-icon"  />
-          </button>
           <div className="item-detailed-data-container">
+
             <div className="item-detailed-data-header">
-              <h5>{selectedStudent.student_full_name}</h5>
+              <div className='item-detailed-data-header-title'>
+                <h5 style={{marginRight:'3px'}}>{selectedStudent.student_family_name}</h5>
+                <h5>{selectedStudent.student_full_name}</h5>
+              </div>
+              <button className="info-details-back-button" onClick={goBack}>
+                <BsArrowLeftShort size={24}/>
+              </button>
             </div>
+
             <div className="item-detailed-data-main">
 
-              <div className="item-detailed-data-main-firstBox">
-                <div className="item-detailed-data-main-firstBox-insider">
+              <div className="student-detailed-data-main-firstBox">
                   <div>
                     <h5 style={{marginLeft:'20px'}}>{selectedStudent.student_parent_full_name || selectedStudent.student_full_name}</h5>
                     <h5>{selectedStudent.student_phone_number || '-'}</h5>
@@ -131,17 +160,17 @@ const Students = () => {
                     <h5 style={{marginLeft:'10px'}}>{selectedStudent.student_birth_date ? calculateAge(selectedStudent.student_birth_date) : '-'}</h5>
                     <h5>سنة</h5>
                   </div>
-                  <div className="student-info-content-main-address-info">
-                    <h5>{selectedStudent.student_home_address || '-'}</h5>
-                    <h5>-</h5>
+                  <div>
+                    <h5 style={{marginLeft:'4px'}}>{selectedStudent.student_home_address || '-'}</h5>
+                    <h5 style={{marginLeft:'4px'}}>-</h5>
                    <h5>{selectedStudent.student_street || '-'}</h5>
                   </div>
-                  <div className="student-info-content-main-address-info">
-                    <h5>{selectedStudent.student_city || '-'}</h5>
-                    <h5>-</h5>
+                  <div>
+                    <h5 style={{marginLeft:'4px'}}>{selectedStudent.student_city || '-'}</h5>
+                    <h5 style={{marginLeft:'4px'}}>-</h5>
                     <h5>{selectedStudent.student_state || '-'}</h5>
                   </div>
-                  <div className="student-info-content-main-address-info">
+                  <div>
                     <h5 style={{marginLeft:'10px'}}>{selectedStudent.student_car_type || '-'}</h5>
                     {isEditing ? (
                       <div className='student-edit-car-type'>
@@ -174,20 +203,22 @@ const Students = () => {
                         
                       </div>
                     ) : (
-                      <button className="info-details-back-button" onClick={() => setIsEditing(true)}>
+                      <button className="student-edit-car-type-btn" onClick={() => setIsEditing(true)}>
                         <CiEdit  size={24} className="email-back-button-icon"  />
                       </button>
                     )}
                     
                   </div>
-                </div>
+                  <div className="student-info-content-main-address-info">
+                    <h5>{selectedStudent.id}</h5>
+                  </div>
                 
               </div>
 
-              <div className="item-detailed-data-main-second-box">
+              <div className="student-detailed-data-main-second-box">
                 <div className="item-detailed-data-main-second-box-content">
                   {driverInfo ? (
-                    <div className='student-second-box-driver-data'>
+                    <div>
                       <div className="eligible-item-item">
                         <h5 style={{marginLeft:'4px'}}>{driverInfo.driver_full_name || '-'}</h5>
                         <h5 style={{marginLeft:'10px'}}>{driverInfo.driver_family_name || '-'}</h5>
@@ -220,14 +251,29 @@ const Students = () => {
       ) : (
         <div className='students-section-inner'>
           <div className='students-section-inner-titles'>
-            <div  className='students-section-inner-title'>
-              <input onChange={handleSearchChange} placeholder='الطالب' type='text' className='students-section-inner-title_search_input' />
+            <div className='students-section-inner-title'>
+              <input 
+                onChange={handleNameFilterChange} 
+                value={nameFilter}
+                placeholder='الاسم' 
+                type='text' 
+                className='students-section-inner-title_search_input' 
+              />
             </div>
             <div className='students-section-inner-title'>
-              <h5>المدرسة</h5>
+              <select onChange={handleSchoolChange} value={schoolFilter}>
+                <option value=''>المدرسة</option>
+                {schools.map(school => (
+                  <option key={school.id} value={school.name}>{school.name}</option>
+                ))}
+              </select>
             </div>
             <div className='students-section-inner-title'>
-              <h5>لديه سائق</h5>
+              <select onChange={handleHasDriverChange} value={hasDriverFilter}>
+              <option value=''>لديه سائق</option>
+                <option value={true}>نعم</option>
+                <option value={false}>لا</option>
+              </select>
             </div>
           </div>
           <div className='all-items-list'>

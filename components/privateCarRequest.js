@@ -9,8 +9,6 @@ const PrivateCarRequest = () => {
   const [selectedDemande, setSelectedDemande] = useState(null);
   const {privateCarRequests} = useGlobalState()
 
-  console.log(privateCarRequests)
-
     // Convert Firestore Timestamp to JavaScript Date object
     const formatDate = (timestamp) => {
       const date = new Date(timestamp.seconds * 1000); 
@@ -43,29 +41,35 @@ const PrivateCarRequest = () => {
     <div className='white_card-section-container'>
       {selectedDemande ? (
         <>
-          <button className="info-details-back-button" onClick={closeEmail}>
-            <BsArrowLeftShort size={24} className="email-back-button-icon"  />
-          </button>
-          <div className="email-content">
-            <div className="request-car-content-header">
-              <h5>{selectedDemande.sender}</h5>
+          <div className="item-detailed-data-container">
+            <div className='email-detailed-data-header'>
+              <div className='email-header-btn'>
+                <button className="email-detailed-data-header-button" onClick={closeEmail}>
+                  <BsArrowLeftShort size={24} className="email-back-button-icon"  />
+                </button>
+              </div>
+              <div className="request-car-content-header">
+                <h5>{selectedDemande.sender}</h5>
+              </div>
             </div>
-            <div className="request-car-content-main">
-              <div>
-                <p className="request-car-content-main-title">عدد السيارات</p>
-                <p className="request-car-content-main-answser">{selectedDemande.numberOfCars}</p>
-              </div>
-              <div>
-                <p>نوع السيارات</p>
-                <p>{selectedDemande.carType}</p>
-              </div>
-              <div>
-                <p>وقت الحضور</p>
-                <p>{new Date(selectedDemande.startTime.seconds * 1000).toLocaleString()}</p>
-              </div>
-              <div>
-                <p>وقت المغادرة</p>
-                <p>{new Date(selectedDemande.endTime.seconds * 1000).toLocaleString()}</p>
+            <div className="email-content-main">
+              <div className="request-car-content-main">
+                <div>
+                  <p className="request-car-content-main-title">عدد السيارات</p>
+                  <p className="request-car-content-main-answser">{selectedDemande.numberOfCars}</p>
+                </div>
+                <div>
+                  <p>نوع السيارات</p>
+                  <p>{selectedDemande.carType}</p>
+                </div>
+                <div>
+                  <p>وقت الحضور</p>
+                  <p>{new Date(selectedDemande.startTime.seconds * 1000).toLocaleString()}</p>
+                </div>
+                <div>
+                  <p>وقت المغادرة</p>
+                  <p>{new Date(selectedDemande.endTime.seconds * 1000).toLocaleString()}</p>
+                </div>
               </div>
             </div>
           </div>

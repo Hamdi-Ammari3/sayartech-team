@@ -29,12 +29,10 @@ const Login = () => {
 
       const querySnapshot = await getDocs(q);
       if (!querySnapshot.empty) {
-        const userData = querySnapshot.docs[0].data();
-
-        console.log(userData)
-        
+        const userData = querySnapshot.docs[0].data();        
         localStorage.setItem('adminLoggedIn', true)
         localStorage.setItem('adminName', userData.username)
+        localStorage.setItem('adminDahboardName', userData.dashboard_name)
         router.push('/')
       } else {
         setError('يرجى التثبت من المعلومات المدرجة')

@@ -8,7 +8,7 @@ import Main from '../components/main'
 import Students from '../components/students'
 import Drivers from '../components/drivers'
 import Schools from '../components/schools'
-import Email from '../components/emails/email'
+import Email from '../components/email'
 import PrivateCarRequest from '../components/privateCarRequest'
 
 const Dashboard = () => {

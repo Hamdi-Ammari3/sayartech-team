@@ -1,9 +1,13 @@
 import React,{useState} from 'react'
 import { useGlobalState } from '../globalState'
+import { FaCaretUp } from "react-icons/fa6"
+import { FaCaretDown } from "react-icons/fa6"
 
 const Schools = () => {
+  const [schoolNameFilter,setSchoolNameFilter] = useState('')
+  const [contractFilter, setContractFilter] = useState('');
+  const [studentCountSortDirection, setStudentCountSortDirection] = useState(null);
 
-  const [searchTerm,setSearchTerm] = useState('')
   const { students, schools} = useGlobalState()
 
   // Group students by school
@@ -18,16 +22,37 @@ const Schools = () => {
     studentCount: studentCounts[school.name] || 0, // Use 0 if no students
   }));
 
-  // Filtered students based on search term
-  const filteredSchool = enrichedSchools.filter((school) => {
-    return(
-      school.name.includes(searchTerm)
-    )
-  })
+  // Filter schools based on search term and contract type
+  const filteredSchools = enrichedSchools.filter((school) => {
+    const matchesName = school.name.includes(schoolNameFilter); // Filter by name
+    const matchesContract = contractFilter ? school.contract === contractFilter : true; // Filter by contract
+    return matchesName && matchesContract;
+  });
 
-  // Handle search input change
+   // Sort schools by student count
+   const sortedSchools = filteredSchools.sort((a, b) => {
+    if (!studentCountSortDirection) return 0; // No sorting
+    if (studentCountSortDirection === 'asc') return a.studentCount - b.studentCount; // Ascending order
+    if (studentCountSortDirection === 'desc') return b.studentCount - a.studentCount; // Descending order
+  });
+
+  // Handle school name input change
   const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
+    setSchoolNameFilter(event.target.value);
+  };
+
+   // Handle contract filter change
+   const handleContractFilterChange = (event) => {
+    setContractFilter(event.target.value);
+  };
+
+  // Handle sorting by student count
+  const handleSortByHighestStudentCount = () => {
+    setStudentCountSortDirection('desc'); // Sort by highest
+  };
+
+  const handleSortByLowestStudentCount = () => {
+    setStudentCountSortDirection('asc'); // Sort by lowest
   };
 
   return (
@@ -35,17 +60,42 @@ const Schools = () => {
       <div className='students-section-inner'>
         <div className='students-section-inner-titles'>
           <div className='students-section-inner-title'>
-            <input onChange={handleSearchChange} placeholder= 'المدرسة' type='text' className='students-section-inner-title_search_input'/>
+            <input 
+              onChange={handleSearchChange}
+              value={schoolNameFilter}
+              placeholder= 'المدرسة' 
+              type='text' 
+              className='students-section-inner-title_search_input'/>
           </div>
           <div className='students-section-inner-title'>
-            <h5>نوع العقد</h5>
+            <select 
+              style={{width:'200px'}}
+              onChange={handleContractFilterChange}
+              value={contractFilter}
+            >
+              <option value=''>نوع العقد</option>
+              <option value='تطبيق'>تطبيق</option>
+              <option value='تطبيق مع سواق'>تطبيق مع سواق</option>
+            </select>
           </div>
           <div className='students-section-inner-title'>
-            <h5>عدد الطلاب</h5>
+            <div className='driver-rating-box'>
+              <button onClick={handleSortByLowestStudentCount}>
+                <FaCaretDown 
+                  size={18} 
+                  className={studentCountSortDirection === 'asc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}/>
+              </button>
+              <h5>عدد الطلاب</h5>
+              <button onClick={handleSortByHighestStudentCount}>
+                <FaCaretUp 
+                  size={18}
+                  className={studentCountSortDirection === 'desc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}/>
+              </button>
+            </div>
           </div>
         </div>
         <div className='all-items-list'>
-          {filteredSchool.map((school, index) => (
+          {sortedSchools.map((school, index) => (
             <div key={index} className='single-item'>
               <h5 style={{paddingRight:'15px'}}>{school.name}</h5>
               <h5
