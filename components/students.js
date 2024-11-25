@@ -1,9 +1,10 @@
 import React,{useState,useEffect} from 'react'
-import { updateDoc,doc } from "firebase/firestore"
+import { updateDoc,doc,deleteDoc } from "firebase/firestore"
 import { DB } from '../firebaseConfig'
 import ClipLoader from "react-spinners/ClipLoader"
 import { useGlobalState } from '../globalState'
 import { BsArrowLeftShort } from "react-icons/bs"
+import { MdDeleteOutline } from "react-icons/md"
 import { CiEdit } from "react-icons/ci"
 
 const Students = () => {
@@ -15,6 +16,7 @@ const Students = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [newStudentCarType,setNewStudentCarType] = useState('')
   const [loading,setLoading] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { students,drivers,schools } = useGlobalState()
 
@@ -129,6 +131,28 @@ const Students = () => {
     }
   }
 
+  //Delete student document from DB
+  const handleDelete = async (id) => {
+    if (isDeleting) return;
+
+    const confirmDelete = window.confirm("هل تريد بالتأكيد حذف هذا الطالب");
+    if (!confirmDelete) return;
+
+    setIsDeleting(true);
+
+    try {
+      const docRef = doc(DB, 'students', id);
+      await deleteDoc(docRef);
+      alert("تم الحذف بنجاح");
+    } catch (error) {
+      console.error("خطأ أثناء الحذف:", error);
+      alert("حدث خطأ أثناء الحذف. حاول مرة أخرى.");
+    } finally {
+      setIsDeleting(false);
+      setSelectedStudent(null)
+    }
+  };
+
 
   return (
     <div className='white_card-section-container'>
@@ -200,7 +224,6 @@ const Students = () => {
                             <button onClick={() => editStudentData()}>تعديل</button>
                           )}
                         </>
-                        
                       </div>
                     ) : (
                       <button className="student-edit-car-type-btn" onClick={() => setIsEditing(true)}>
@@ -209,8 +232,17 @@ const Students = () => {
                     )}
                     
                   </div>
-                  <div className="student-info-content-main-address-info">
+                  <div>
                     <h5>{selectedStudent.id}</h5>
+                  </div>
+                  <div>
+                  <button 
+                      className="assinged-item-item-delete-button" 
+                      onClick={() => handleDelete(selectedStudent.id)}
+                      disabled={isDeleting}
+                    >
+                      <MdDeleteOutline size={24} />
+                    </button>
                   </div>
                 
               </div>

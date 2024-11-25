@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useMemo} from 'react'
-import { updateDoc,doc,arrayUnion,arrayRemove } from "firebase/firestore"
+import { updateDoc,deleteDoc,doc,arrayUnion,arrayRemove } from "firebase/firestore"
 import { DB } from '../firebaseConfig'
 import ClipLoader from "react-spinners/ClipLoader"
 import { useGlobalState } from '../globalState'
@@ -21,6 +21,7 @@ const  Drivers = () => {
   const [loading,setLoading] = useState(false)
   const [studentNameFilter, setStudentNameFilter] = useState("")
   const [studentSchoolFilter, setStudentSchoolFilter] = useState("")
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Filtered drivers based on search term
   const filteredDrivers = drivers.filter((driver) => {
@@ -118,13 +119,11 @@ const  Drivers = () => {
 
   // Fetch Eligible Students
   const filterEligibleStudents = () => {
-    const availableSeats = selectedDriver.driver_car_seats - (selectedDriver.assigned_students?.length || 0);
-
     const eligible = students
       .filter(
         (student) =>
           !student.driver_id && // Student has no driver assigned
-          student.student_car_type === selectedDriver.driver_car_type // Match car type
+          student.student_car_type.trim() === selectedDriver.driver_car_type.trim() // Match car type
       )
 
     setEligibleStudents(eligible);
@@ -201,6 +200,29 @@ const  Drivers = () => {
     }
   }
 
+  //Delete driver document from DB
+  const handleDelete = async (id) => {
+    if (isDeleting) return;
+
+    const confirmDelete = window.confirm("هل تريد بالتأكيد حذف هذا السائق");
+    if (!confirmDelete) return;
+
+    setIsDeleting(true);
+
+    try {
+      const docRef = doc(DB, 'drivers', id);
+      await deleteDoc(docRef);
+      alert("تم الحذف بنجاح");
+    } catch (error) {
+      console.error("خطأ أثناء الحذف:", error);
+      alert("حدث خطأ أثناء الحذف. حاول مرة أخرى.");
+    } finally {
+      setIsDeleting(false);
+      setSelectedDriver(null)
+    }
+  };
+
+
   return (
     <div className='white_card-section-container'>
       {selectedDriver ? (
@@ -234,6 +256,15 @@ const  Drivers = () => {
                   </div>
                   <div>
                     <h5>{selectedDriver.id}</h5>
+                  </div>
+                  <div>
+                    <button 
+                      className="assinged-item-item-delete-button" 
+                      onClick={() => handleDelete(selectedDriver.id)}
+                      disabled={isDeleting}
+                    >
+                      <MdDeleteOutline size={24} />
+                    </button>
                   </div>
               </div>
 
