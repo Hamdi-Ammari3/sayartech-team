@@ -61,14 +61,17 @@ const Email = () => {
         </>
       ) : (
         <div className='all-items-list'>
-          {emails.map((email,index) => (
-            <div onClick={() => openEmail(email)} key={index} className='single-item'>
+          {emails
+            .slice()
+            .sort((a, b) => b.date.seconds - a.date.seconds)
+            .map((email,index) => (
+              <div onClick={() => openEmail(email)} key={index} className='single-item'>
                 <h5 className={!email.seen && 'not-seen'}>{email.sender}</h5>
                 <h5 style={{width:'300px'}} className={!email.seen && 'not-seen'}>
                   {email.messageBody.length > 50 ? `${email.messageBody.slice(0, 50)}...` : email.messageBody}
                 </h5>
                 <h5 className={!email.seen && 'not-seen'}>{formatDate(email.date)}</h5>             
-            </div>
+              </div>
           ))}
         </div>
       )}

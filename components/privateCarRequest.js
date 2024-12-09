@@ -55,6 +55,10 @@ const PrivateCarRequest = () => {
             <div className="email-content-main">
               <div className="request-car-content-main">
                 <div>
+                  <p>عدد الحضور</p>
+                  <p>{selectedDemande.numberOfPersons}</p>
+                </div>
+                <div>
                   <p className="request-car-content-main-title">عدد السيارات</p>
                   <p className="request-car-content-main-answser">{selectedDemande.numberOfCars}</p>
                 </div>
@@ -63,11 +67,11 @@ const PrivateCarRequest = () => {
                   <p>{selectedDemande.carType}</p>
                 </div>
                 <div>
-                  <p>وقت الحضور</p>
+                  <p>موعد الحضور</p>
                   <p>{new Date(selectedDemande.startTime.seconds * 1000).toLocaleString()}</p>
                 </div>
                 <div>
-                  <p>وقت المغادرة</p>
+                  <p>موعد المغادرة</p>
                   <p>{new Date(selectedDemande.endTime.seconds * 1000).toLocaleString()}</p>
                 </div>
               </div>
@@ -76,11 +80,14 @@ const PrivateCarRequest = () => {
         </>
       ) : (
         <div className='all-items-list'>
-          {privateCarRequests.map((request,index) => (
-            <div key={index} onClick={() => openRequest(request)} className='single-item'>
-              <h5 className={!request.seen && 'not-seen'}>{request.sender}</h5>
-              <h5 className={!request.seen && 'not-seen'}>{formatDate(request.request_send_date)}</h5>
-            </div>
+          {privateCarRequests
+            .slice()
+            .sort((a, b) => b.request_send_date.seconds - a.request_send_date.seconds)
+            .map((request,index) => (
+              <div key={index} onClick={() => openRequest(request)} className='single-item'>
+                <h5 className={!request.seen && 'not-seen'}>{request.sender}</h5>
+                <h5 className={!request.seen && 'not-seen'}>{formatDate(request.request_send_date)}</h5>
+              </div>
           ))}
         </div>
       )}
@@ -90,5 +97,3 @@ const PrivateCarRequest = () => {
 }
 
 export default PrivateCarRequest
-
-//<p className="email-date">{new Date(selectedDemande.request_send_date.seconds * 1000).toLocaleString()}</p>

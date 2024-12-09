@@ -172,9 +172,15 @@
     justify-content: center;
     cursor: pointer;
 }
-.side-box > div > div > h4 {
+.side-box h4 {
     font-size: 17px;
     font-weight: 400;
+    margin: 0;
+}
+.side-box-email-count-div {
+    display: flex;
+    align-items: center;
+    margin: 0;
 }
 .active {
     background-color: #955BFE;
@@ -197,7 +203,7 @@
 }
 .main_section_stat {
     width:60vw;
-    height:45vh;
+    height:40vh;
     margin: 10px 0;
     padding: 20px 0px;
     background-color: #fff;
@@ -216,8 +222,7 @@
     justify-content: center;
 }
 .main_section_stat_header_div > h4 {
-    font-size: 17px;
-    font-weight: 400;
+    font-size: 14px;
 }
 .main_section_stat_items{
     width:50vw;
@@ -333,6 +338,28 @@
     align-items: center;
     justify-content: center;
 }
+.students-or-driver-btn{
+  width: 120px;
+  height: 30px;
+  margin-inline: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cccc;
+  box-shadow: -10px 10px 3px -14px rgba(0,0,0,0.5);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.students-or-driver-btn > h4{
+  font-size: 16px;
+  font-weight: 400;
+  margin: 0;
+}
+.active {
+  background-color: #955BFE;
+  color: #fff!important;
+  box-shadow: -10px 13px 5px -14px rgba(0,0,0,0.5);
+}
 .students-section-inner-title:nth-child(1) {
     flex: 4;
 }
@@ -408,6 +435,7 @@
     border-bottom: 1px solid #f1f1f1;
     transition: box-shadow 0.2s ease;
     cursor: pointer;
+    
 }
 .single-item:hover{
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
@@ -425,7 +453,7 @@
 .single-item h5:nth-of-type(3){
     flex: 3;
 }
-.student-has-driver,.high-rating {
+.student-has-driver,.high-rating,.student-at-home {
     color: #56CA00;
     padding: 5px 0;
     border-radius: 5px;
@@ -766,7 +794,7 @@
     overflow: auto;
   }
   .email-content-main{
-    height: 55vh;
+    height: 60vh;
     width: 58vw;
     text-align: center;
     display: flex;
@@ -775,19 +803,19 @@
     align-items: center;
     overflow: auto;
   }
-  .request-car-content-main div {
-    width: 40vw;
+  .request-car-content-main > div {
+    width: 50vw;
     display: flex;
     flex-direction: row-reverse;
     align-items: center;
     justify-content: space-between;
+    border: 1px solid #cccbcb;
+    margin-bottom: 10px;
   }
-  .request-car-content-main div p:first-child{
-    text-align: center;
+  .request-car-content-main p {
     width: 20vw;
-  }
-  .request-car-content-main div p:last-child{
-    width: 20vw;
+    margin: 0px;
+    padding: 7px 0;
     text-align: center;
   }
 .loading_spinner {
@@ -955,11 +983,12 @@
   }
   .main-section-container{
     height: 100%;
-    width: 80%;
+    width: 100%;
   }
   .main_section_stat {
-    width:70vw;
-    height:45vh;
+    width:98%;
+    height:40vh;
+    margin-top: 0;
   }
   .main_section_stat_items{
     width:90%;
@@ -972,6 +1001,25 @@
     overflow-y: auto;
     overflow-x: hidden;
   }
+  .students-section-inner-title > input {
+    width: 95%;
+    font-size: 14px;
+}
+.students-section-inner-title > select {
+    font-size: 14px;
+}
+.students-section-inner-title:nth-child(2) > select {
+  width: 95%;
+}
+.students-section-inner-title:nth-child(3) > select {
+  width: 95%;
+}
+.driver-rating-box{
+  width: 95%;
+}
+.driver-rating-box > h5 {
+  font-size: 11px;
+}
   .single-item{
     width:98vw;
   }
@@ -984,6 +1032,19 @@
   .email-headline{
     width:90vw;
     justify-content: center;
+  }
+  .email-content-main{
+    width:90vw;
+    height: 66vh;
+  }
+  .request-car-content-main > div {
+    width: 88vw;
+  }
+  .request-car-content-main p {
+    width: 40vw;
+    margin: 0px;
+    padding: 7px 0;
+    text-align: center;
   }
   .email-main{
     width:100vw;

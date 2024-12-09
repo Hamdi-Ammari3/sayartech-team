@@ -12,6 +12,8 @@ const initialState = {
   schools: [],
   emails: [],
   privateCarRequests: [],
+  unseenEmailsCount: 0,
+  unseenPrivateCarRequestsCount: 0,
   loading: true,
   error: null,
 };
@@ -74,17 +76,19 @@ export const GlobalStateProvider = ({ children }) => {
 
     const unsubscribeEmails = onSnapshot(collection(DB, 'emails'), (snapshot) => {
       const emails = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      const unseenEmailsCount = emails.filter((email) => !email.seen).length;
       dispatch({
         type: 'FETCH_SUCCESS',
-        payload: { emails },
+        payload: { emails,unseenEmailsCount },
       });
     });
 
     const unsubscribePrivateCarRequests = onSnapshot(collection(DB, 'carRequest'), (snapshot) => {
       const privateCarRequests = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      const unseenPrivateCarRequestsCount = privateCarRequests.filter((req) => !req.seen).length;
       dispatch({
         type: 'FETCH_SUCCESS',
-        payload: { privateCarRequests },
+        payload: { privateCarRequests,unseenPrivateCarRequestsCount },
       });
     });
 

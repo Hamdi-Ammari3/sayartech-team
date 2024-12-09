@@ -85,7 +85,7 @@ const Schools = () => {
                   size={18} 
                   className={studentCountSortDirection === 'asc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}/>
               </button>
-              <h5>عدد الطلاب</h5>
+              <h5>الطلاب</h5>
               <button onClick={handleSortByHighestStudentCount}>
                 <FaCaretUp 
                   size={18}

@@ -35,9 +35,7 @@ const  Drivers = () => {
   .map((driver) => {
     // Calculate average rating (round to the nearest integer)
     const totalRating = driver.rating.reduce((sum, r) => sum + r, 0);
-    console.log('total rating',totalRating)
     const avgRating = driver.rating.length > 0 ? Math.round(totalRating / driver.rating.length) : '-';
-    console.log('avrg',avgRating)
     return { ...driver, avgRating };
   })
   .sort((a, b) => {

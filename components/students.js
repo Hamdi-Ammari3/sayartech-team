@@ -162,8 +162,10 @@ const Students = () => {
 
             <div className="item-detailed-data-header">
               <div className='item-detailed-data-header-title'>
-                <h5 style={{marginRight:'3px'}}>{selectedStudent.student_family_name}</h5>
-                <h5>{selectedStudent.student_full_name}</h5>
+                <h5>{selectedStudent.student_phone_number || '-'}</h5>
+                <h5 style={{marginLeft:'5px',marginRight:'5px'}}>-</h5>
+                <h5 style={{marginRight:'4px'}}>{selectedStudent.student_family_name}</h5>
+                <h5>{selectedStudent.student_parent_full_name || selectedStudent.student_full_name}</h5>
               </div>
               <button className="info-details-back-button" onClick={goBack}>
                 <BsArrowLeftShort size={24}/>
@@ -174,8 +176,7 @@ const Students = () => {
 
               <div className="student-detailed-data-main-firstBox">
                   <div>
-                    <h5 style={{marginLeft:'20px'}}>{selectedStudent.student_parent_full_name || selectedStudent.student_full_name}</h5>
-                    <h5>{selectedStudent.student_phone_number || '-'}</h5>
+                    <h5>{selectedStudent.student_full_name}</h5>
                   </div>
                   <div>
                     <h5>{selectedStudent.student_school || '-'}</h5>

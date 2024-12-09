@@ -1,10 +1,12 @@
 'use client'
 import React,{useState,useEffect} from 'react'
 import {useRouter} from 'next/navigation'
+import { useGlobalState } from '../globalState'
 import ClipLoader from "react-spinners/ClipLoader"
 import './style.css'
 import Navbar from '../components/navBar'
 import Main from '../components/main'
+import DailyStatus from '../components/dailyStatus'
 import Students from '../components/students'
 import Drivers from '../components/drivers'
 import Schools from '../components/schools'
@@ -15,7 +17,10 @@ const Dashboard = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [activeSection,setActiveSection] = useState('الرئيسية')
   const router = useRouter();
+  const {privateCarRequests,emails} = useGlobalState()
 
+  const privateCarRequestLength = privateCarRequests.filter(car => car.seen === false).length
+  const emailLength = emails.filter(email => email.seen === false).length
 
 useEffect(() => {
   // Check if admin is logged in
@@ -52,6 +57,8 @@ useEffect(() => {
     switch (activeSection) {
       case 'الرئيسية':
         return <Main/>
+      case 'الحالة اليومية':
+        return <DailyStatus/>
       case 'الطلاب' :
         return <Students/>
       case 'السواق':
@@ -79,6 +86,13 @@ useEffect(() => {
               className={activeSection === 'الرئيسية' ? 'active':''}
             >
               <h4 >الرئيسية</h4>
+            </div>
+
+            <div
+              onClick={() => handleSectionSelect('الحالة اليومية')}
+              className={activeSection === 'الحالة اليومية' ? 'active':''}
+            >
+              <h4 >الحالة اليومية</h4>
             </div>
 
             <div
