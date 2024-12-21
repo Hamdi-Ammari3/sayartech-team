@@ -1,10 +1,11 @@
 import React,{useState,useEffect,useMemo} from 'react'
-import { updateDoc,deleteDoc,doc,arrayUnion,arrayRemove } from "firebase/firestore"
+import { doc,arrayUnion,writeBatch } from "firebase/firestore"
 import { DB } from '../firebaseConfig'
 import ClipLoader from "react-spinners/ClipLoader"
 import { useGlobalState } from '../globalState'
 import { BsArrowLeftShort } from "react-icons/bs"
-import { MdDeleteOutline } from "react-icons/md"
+import { FcDeleteDatabase } from "react-icons/fc";
+import { FcCancel } from "react-icons/fc";
 import { FaCaretUp } from "react-icons/fa6"
 import { FaCaretDown } from "react-icons/fa6"
 
@@ -102,18 +103,26 @@ const  Drivers = () => {
       fetchAssignedStudents();
       filterEligibleStudents();
     }
-  }, [selectedDriver,students]);
+  }, [selectedDriver]);
 
+  // Fetch assigned students
+  const fetchAssignedStudents = async () => {
+    try {
+      setLoading(true);
 
-  //Fetch assigned students
-    const fetchAssignedStudents = () => {
-    const assigned = students
-      .filter(
-        (student) => 
-          student.driver_id === selectedDriver.driver_user_id
-      )
-      setAssignedStudents(assigned)
-  }
+      const assignedStudentIds = selectedDriver.assigned_students.map(student => student.id) || [];
+
+      // Fetch all students and filter by the assigned IDs
+      const assigned = students.filter(student => assignedStudentIds.includes(student.id));
+      setAssignedStudents(assigned);
+
+    } catch (error) {
+      console.error("Error fetching assigned students:", error);
+      alert("Failed to fetch assigned students. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Fetch Eligible Students
   const filterEligibleStudents = () => {
@@ -146,21 +155,62 @@ const  Drivers = () => {
   }, [studentNameFilter, studentSchoolFilter, eligibleStudents]);
 
   //Connect student with driver
-  const assignStudentToDriverHandler = async (studentId,driverId,driverUserId) => {
+  const assignStudentToDriverHandler = async (student,driverId) => {
     setLoading(true)
     try {
       const driverRef = doc(DB, "drivers", driverId);
-      const studentRef = doc(DB, "students", studentId);
+      const studentRef = doc(DB, "students", student.id);
+
+      // Extract latitude and longitude from the nested home_location object
+      const homeCoords = student.student_home_location?.coords || {};
+
+      const studentInfo = {
+        birth_date:student.student_birth_date,
+        checked_in_front_of_school: false,
+        dropped_off: false,
+        family_name:student.student_family_name,
+        home_address: student.student_home_address || '',
+        home_location: {
+          latitude: homeCoords.latitude || null,
+          longitude: homeCoords.longitude || null,
+        },
+        id:student.id,
+        name: student.student_full_name || 'Unknown',
+        notification_token:student.student_user_notification_token,
+        phone_number:student.student_phone_number,
+        picked_from_school: false,
+        picked_up: false,
+        school_location: {
+          latitude: student.student_school_location.latitude || null,
+          longitude: student.student_school_location.longitude || null,
+        },
+        school_name:student.student_school,
+        student_state:student.student_state,
+        student_street:student.student_street,  
+        tomorrow_trip_canceled: false,
+      };
+
+      // Use writeBatch for atomic updates
+      const batch = writeBatch(DB);
 
       // Update the driver's assigned_students field
-      await updateDoc(driverRef, {
-        assigned_students: arrayUnion(studentId), // Add student ID to assigned_students array
+      batch.update(driverRef, {
+        assigned_students: arrayUnion(studentInfo),
       });
 
-       // Update the student's driver_id field
-      await updateDoc(studentRef, {
-        driver_id: driverUserId, // Set the driver's ID in the student's document
+      // Update the student's driver_id field
+      batch.update(studentRef, {
+        driver_id: driverId,
       });
+
+      // Commit the batch
+      await batch.commit();
+
+      // Update the local state for selectedDriver
+      setSelectedDriver((prevDriver) => ({
+        ...prevDriver,
+        assigned_students: [...(prevDriver.assigned_students || []), studentInfo],
+      }));
 
       alert("Student successfully assigned to the driver!");
 
@@ -169,37 +219,49 @@ const  Drivers = () => {
       alert("Failed to assign student. Please try again.");
     } finally{
       setLoading(false)
+      setStudentNameFilter("")
     }
   }
 
+  // Delete connection between driver and student
   const deleteStudentFromAssignedHandler = async(studentId,driverId) => {
     setLoading(true)
     try {
       const driverRef = doc(DB, "drivers", driverId);
       const studentRef = doc(DB, "students", studentId);
 
-      // Remove the student ID from the driver's assigned_students array
-      await updateDoc(driverRef, {
-        assigned_students: arrayRemove(studentId), // Remove student ID
+      // Filter out the student with the matching ID
+      const assignedStudents = selectedDriver.assigned_students || [];
+      const updatedAssignedStudents = assignedStudents.filter(student => student.id !== studentId);
+
+      // Use writeBatch for atomic updates
+      const batch = writeBatch(DB);
+
+      // Update the driver's assigned_students field
+      batch.update(driverRef, {
+        assigned_students: updatedAssignedStudents,
       });
 
       // Reset the student's driver_id field
-      await updateDoc(studentRef, {
-        driver_id: null, // Clear the driver's ID from the student's document
+      batch.update(studentRef, {
+        driver_id: null,
       });
 
-      alert("Student successfully removed from the driver's assigned list!");
+      // Commit the batch
+      await batch.commit();
+
+      alert("تم الغاء الربط بنجاح");
 
     } catch (error) {
       console.error("Error removing student from driver:", error);
-      alert("Failed to remove student. Please try again.");
+      alert("خطا اثناء محاولة الالغاء. الرجاء المحاولة مرة ثانية");
     } finally{
       setLoading(false)
     }
   }
 
   //Delete driver document from DB
-  const handleDelete = async (id) => {
+  const handleDelete = async () => {
     if (isDeleting) return;
 
     const confirmDelete = window.confirm("هل تريد بالتأكيد حذف هذا السائق");
@@ -208,9 +270,23 @@ const  Drivers = () => {
     setIsDeleting(true);
 
     try {
-      const docRef = doc(DB, 'drivers', id);
-      await deleteDoc(docRef);
-      alert("تم الحذف بنجاح");
+      const { id, assigned_students } = selectedDriver;
+      const batch = writeBatch(DB);
+
+      // Update each student's driver_id field to null
+      (assigned_students || []).forEach((student) => {
+        const studentRef = doc(DB, "students", student.id);
+        batch.update(studentRef, { driver_id: null });
+      });
+
+      // Delete the driver document
+      const driverRef = doc(DB, "drivers", id);
+      batch.delete(driverRef);
+
+      // Commit the batch update
+      await batch.commit();
+
+      alert("تم الحذف بنجاح، وتم تحديث بيانات الطلاب المرتبطين بالسائق.");
     } catch (error) {
       console.error("خطأ أثناء الحذف:", error);
       alert("حدث خطأ أثناء الحذف. حاول مرة أخرى.");
@@ -261,7 +337,7 @@ const  Drivers = () => {
                       onClick={() => handleDelete(selectedDriver.id)}
                       disabled={isDeleting}
                     >
-                      <MdDeleteOutline size={24} />
+                      <FcDeleteDatabase size={24} />
                     </button>
                   </div>
               </div>
@@ -332,7 +408,7 @@ const  Drivers = () => {
                             ) : (
                               <button 
                                 className="eligible-item-box-btn"
-                                onClick={() => assignStudentToDriverHandler(elig.id,selectedDriver.id,selectedDriver.driver_user_id)}
+                                onClick={() => assignStudentToDriverHandler(elig,selectedDriver.id)}
                               >ربط الحساب بسائق</button>
                             )}               
                           </div>
@@ -369,7 +445,7 @@ const  Drivers = () => {
                                     className="assinged-item-item-delete-button" 
                                     onClick={() => deleteStudentFromAssignedHandler(assign.id,selectedDriver.id)}
                                   >
-                                    <MdDeleteOutline size={24} />
+                                    <FcCancel size={24} />
                                   </button>
                                 )}
                               </div>
@@ -438,7 +514,7 @@ const  Drivers = () => {
                 <h5 className={getRatingClassName(driver.avgRating)}>{driver.avgRating === '-' ? '-' : driver.avgRating}</h5>
               </div>
             ))}
-          </div> 
+          </div>
         </div>
       )}
     </div>

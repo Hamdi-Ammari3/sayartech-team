@@ -1,13 +1,17 @@
 import React,{useState,useEffect} from 'react'
-import { updateDoc,doc,deleteDoc } from "firebase/firestore"
+import { updateDoc,doc,writeBatch } from "firebase/firestore"
 import { DB } from '../firebaseConfig'
 import ClipLoader from "react-spinners/ClipLoader"
 import { useGlobalState } from '../globalState'
 import { BsArrowLeftShort } from "react-icons/bs"
-import { MdDeleteOutline } from "react-icons/md"
-import { CiEdit } from "react-icons/ci"
+import { FcDeleteDatabase } from "react-icons/fc";
+import { FcCalendar } from "react-icons/fc";
+import { FcEditImage } from "react-icons/fc";
+import { Modal, Table } from "antd";
+import dayjs from "dayjs";
 
 const Students = () => {
+  const { students,drivers,schools } = useGlobalState()
   const [nameFilter,setNameFilter] = useState('')
   const [schoolFilter,setSchoolFilter] = useState('')
   const [hasDriverFilter,setHasDriverFilter] = useState('')
@@ -17,8 +21,11 @@ const Students = () => {
   const [newStudentCarType,setNewStudentCarType] = useState('')
   const [loading,setLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false);
-
-  const { students,drivers,schools } = useGlobalState()
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [editingTimetable, setEditingTimetable] = useState([]);
+  const [isEditingTimeTable, setIsEditingTimeTable] = useState(false);
+  const [isSavingNewTimeTable,setIsSavingNewTimeTable] = useState(false)
+  const [selectedDays, setSelectedDays] = useState([]);
 
   // Filtered students based on search term
   const filteredStudents = students.filter((student) =>{
@@ -84,13 +91,25 @@ const Students = () => {
   useEffect(() => {
     if (selectedStudent) {
       const assignedDriver = drivers.find(
-        (driver) => String(driver.driver_user_id) === String(selectedStudent.driver_id)
+        (driver) => String(driver.id) === String(selectedStudent.driver_id)
       );
       setDriverInfo(assignedDriver || null)
       
     }
   }, [selectedStudent, drivers]);
 
+  // Week days
+  const daysOfWeek = [
+    "الاثنين",
+    "الثلاثاء",
+    "الأربعاء",
+    "الخميس",
+    "الجمعة",
+    "السبت",
+    "الأحد",
+  ];
+
+  // Car Types
   const carTypes = [
     'سيارة صالون ٥ راكب',
     'سيارة خاصة ٧ راكب',
@@ -99,6 +118,74 @@ const Students = () => {
     'باص متوسط ١٤ راكب',
     'باص كبير ٣٠ راكب',
   ]
+
+  //Open the time-table Modal
+  const handleOpenModal = () => {
+    setEditingTimetable(
+      daysOfWeek.map((day) => {
+        const dayData =
+          selectedStudent?.school_timetable?.find((t) => t.day === day) || {
+            day,
+            active: false,
+            startTime: null,
+            endTime: null,
+          };
+        return dayData;
+      })
+    );
+    setIsModalVisible(true); // Show the modal
+  };
+  
+  // Close the time-table Calendar
+  const handleCloseModal = () => {
+    setIsModalVisible(false)
+    setIsEditingTimeTable(false)
+  };
+
+  // Handle input changes
+  const handleInputChange = (value, day, field) => {
+    setEditingTimetable((prev) =>
+      prev.map((item) => {
+        // Update only the specific day being modified
+        if (item.day === day) {
+          return {
+            ...item,
+            [field]: value
+              ? new Date(`1970-01-01T${value}:00`) // Convert time to a Date object
+              : null,
+            active: !(value === "00:00" && field === "startTime") && !(value === "00:00" && field === "endTime"),
+          };
+        }
+        return item;
+      })
+    );
+  };
+  
+  // Save changes to Firestore
+  const handleSaveTimetable = async () => {
+    setIsSavingNewTimeTable(true)  
+    try {
+      const studentRef = doc(DB, "students", selectedStudent.id)
+
+      // Save the new timetable to Firestore
+      await updateDoc(studentRef, { school_timetable: editingTimetable })
+
+      // Update local state to reflect the new timetable
+      setSelectedStudent((prev) => ({
+        ...prev,
+        school_timetable: editingTimetable,
+      }));
+
+      alert("تم تحديث الجدول الدراسي بنجاح!");
+      setIsModalVisible(false);
+      setSelectedDays([]);
+    } catch (error) {
+      console.error("Error updating timetable:", error);
+      alert("حدث خطأ أثناء تحديث الجدول الدراسي. حاول مرة أخرى.");
+    } finally {
+      setIsSavingNewTimeTable(false)
+    }
+  };
 
   //Edit Student Data 
   const editStudentData = async() => {
@@ -116,10 +203,10 @@ const Students = () => {
       alert("تم تعديل نوع السيارة بنجاح!");
 
       // Optionally update the local state if needed
-    setSelectedStudent((prev) => ({
-      ...prev,
-      student_car_type: newStudentCarType,
-    }));
+      setSelectedStudent((prev) => ({
+        ...prev,
+        student_car_type: newStudentCarType,
+      }));
 
       // Clear the selection
       setNewStudentCarType("");
@@ -132,7 +219,7 @@ const Students = () => {
   }
 
   //Delete student document from DB
-  const handleDelete = async (id) => {
+  const handleDelete = async (studentId) => {
     if (isDeleting) return;
 
     const confirmDelete = window.confirm("هل تريد بالتأكيد حذف هذا الطالب");
@@ -141,8 +228,28 @@ const Students = () => {
     setIsDeleting(true);
 
     try {
-      const docRef = doc(DB, 'students', id);
-      await deleteDoc(docRef);
+      const batch = writeBatch(DB);
+      const studentRef = doc(DB, 'students', studentId);
+      
+      const driverId = selectedStudent.driver_id;
+
+      batch.delete(studentRef);
+
+      // If the student has an assigned driver, update the driver's assigned_students array
+      if (driverId) {
+        const driverRef = doc(DB, "drivers", driverId);
+
+        // Fetch the driver's data to get the assigned_students array
+          const updatedAssignedStudents = driverInfo.assigned_students.filter(student => student.id !== studentId);
+          //Update the driver's assigned_students field
+          batch.update(driverRef, {
+            assigned_students: updatedAssignedStudents,
+          });
+      }
+
+      //Commit the batch
+      await batch.commit();
+
       alert("تم الحذف بنجاح");
     } catch (error) {
       console.error("خطأ أثناء الحذف:", error);
@@ -152,7 +259,6 @@ const Students = () => {
       setSelectedStudent(null)
     }
   };
-
 
   return (
     <div className='white_card-section-container'>
@@ -179,7 +285,123 @@ const Students = () => {
                     <h5>{selectedStudent.student_full_name}</h5>
                   </div>
                   <div>
-                    <h5>{selectedStudent.student_school || '-'}</h5>
+                    <h5 style={{marginLeft:'5px'}}>{selectedStudent.student_school || '-'}</h5>
+                    <button className="student-edit-car-type-btn" onClick={handleOpenModal}>
+                      <FcCalendar size={24}/>
+                    </button>
+                    {/* Timetable Modal */}
+                    <Modal
+                      title="الجدول الدراسي"
+                      open={isModalVisible}
+                      onCancel={handleCloseModal}
+                      footer={[
+                        <button 
+                          key="cancel" 
+                          onClick={handleCloseModal}
+                          disabled={isSavingNewTimeTable}
+                          className='cancel-time-table-button'
+                          style={{border:'1px solid #955BFE',color:'#955BFE',backgroundColor:'#fff'}}
+                        >
+                          إلغاء
+                        </button>,
+                        <button
+                          key="save"
+                          onClick={handleSaveTimetable}
+                          disabled={isSavingNewTimeTable}
+                          className='save-time-table-button'
+                          style={{backgroundColor:'#955BFE',border:'none',color:'#fff',marginLeft:'10px'}}
+                        >
+                          {isSavingNewTimeTable ? (
+                            <div style={{ width:'60px',padding:'3px 0px',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                              <ClipLoader
+                                color={'#fff'}
+                                loading={isSavingNewTimeTable}
+                                size={10}
+                                aria-label="Loading Spinner"
+                                data-testid="loader"
+                              />
+                            </div>
+                          ) : (
+                            "حفظ"
+                          )}
+                        </button>,
+                      ]}
+                      centered
+                    >
+                      <Table
+                        dataSource={editingTimetable}
+                        columns={[
+                          {
+                            title: "تعديل",
+                            key: "select",
+                            render: (_, record) => (
+                              <input
+                                type="checkbox"
+                                checked={selectedDays.includes(record.day)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedDays((prev) => [...prev, record.day]);
+                                  } else {
+                                    setSelectedDays((prev) =>
+                                      prev.filter((day) => day !== record.day)
+                                    );
+                                  }
+                                }}
+                              />
+                            ),
+                          },
+                          {
+                            title: "وقت النهاية",
+                            dataIndex: "endTime",
+                            key: "endTime",
+                            render: (time, record) =>
+                              record.day === isEditingTimeTable || selectedDays.includes(record.day) ? (
+                                <input
+                                  type="time"
+                                  value={
+                                    time ? dayjs(time.seconds ? time.toDate() : time).format("HH:mm") : ""
+                                  }
+                                  onChange={(e) =>
+                                    handleInputChange(e.target.value, record.day, "endTime")
+                                  }
+                                />
+                              ) : record.active && time ? (
+                                dayjs(time.seconds ? time.toDate() : time).format("HH:mm")
+                              ) : (
+                                "-"
+                              ),
+                          },
+                          {
+                            title: "وقت البداية",
+                            dataIndex: "startTime",
+                            key: "startTime",
+                            render: (time, record) =>
+                              record.day === isEditingTimeTable || selectedDays.includes(record.day) ? (
+                                <input
+                                  type="time"
+                                  value={
+                                    time ? dayjs(time.seconds ? time.toDate() : time).format("HH:mm") : ""
+                                  }
+                                  onChange={(e) =>
+                                    handleInputChange(e.target.value, record.day, "startTime")
+                                  }
+                                />
+                              ) : record.active && time ? (
+                                dayjs(time.seconds ? time.toDate() : time).format("HH:mm")
+                              ) : (
+                                "-"
+                              ),
+                          },
+                          {
+                            title: "اليوم",
+                            dataIndex: "day",
+                            key: "day",
+                          },
+                        ]}
+                        rowKey="day"
+                        pagination={false}
+                      />
+                    </Modal>
                   </div>
                   <div>
                     <h5 style={{marginLeft:'10px'}}>{selectedStudent.student_birth_date ? calculateAge(selectedStudent.student_birth_date) : '-'}</h5>
@@ -228,7 +450,7 @@ const Students = () => {
                       </div>
                     ) : (
                       <button className="student-edit-car-type-btn" onClick={() => setIsEditing(true)}>
-                        <CiEdit  size={24} className="email-back-button-icon"  />
+                        <FcEditImage  size={24} className="email-back-button-icon"  />
                       </button>
                     )}
                     
@@ -237,12 +459,12 @@ const Students = () => {
                     <h5>{selectedStudent.id}</h5>
                   </div>
                   <div>
-                  <button 
+                    <button 
                       className="assinged-item-item-delete-button" 
                       onClick={() => handleDelete(selectedStudent.id)}
                       disabled={isDeleting}
                     >
-                      <MdDeleteOutline size={24} />
+                      <FcDeleteDatabase size={24} />
                     </button>
                   </div>
                 
