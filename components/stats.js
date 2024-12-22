@@ -7,7 +7,7 @@ import ClipLoader from "react-spinners/ClipLoader"
 import '../app/style.css'
 
 const Stats = () => {
-  const {students, schools,drivers, loading } = useGlobalState()
+  const { students,schools,drivers,loading } = useGlobalState()
 
   return (
     <div className='main_section_stat'>

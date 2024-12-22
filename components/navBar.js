@@ -1,10 +1,12 @@
 import React,{useEffect,useState} from 'react'
 import { CiLogout } from "react-icons/ci"
 import { useRouter } from 'next/navigation'
+import ClipLoader from "react-spinners/ClipLoader"
 
 const Navbar = () => {
   const router = useRouter();
   const [userName,setUserName] = useState('')
+  const [isLoggingOut,setIsLoggingOUt] = useState(false)
 
   useEffect(() => {
     const storedName = localStorage.getItem('adminDahboardName');
@@ -12,11 +14,19 @@ const Navbar = () => {
   }, []);
 
   const logoutHandler = () => {
-    localStorage.removeItem('adminLoggedIn')
-    localStorage.removeItem('adminName')
-    localStorage.removeItem('adminDahboardName')
-    router.push('/login');
+    setIsLoggingOUt(true)
+    try {
+      localStorage.removeItem('adminLoggedIn')
+      localStorage.removeItem('adminName')
+      localStorage.removeItem('adminDahboardName')
+      router.push('/login');
+    } catch (error) {
+      console.log(error)
+    } finally {
+      setIsLoggingOUt(false)
+    }
   }
+
   return (
     <div className='navbar'>
         <div className='navbar_logo_div'>
@@ -24,10 +34,23 @@ const Navbar = () => {
         </div>
         <div className='navbar_user_box'>
           <h5>{userName}</h5>
-          <button onClick={logoutHandler}>
-            <p>خروج</p>
-            <CiLogout style={{color:'#000',fontSize:15}} />
-          </button>
+          {isLoggingOut ? (
+            <div style={{ width:'70px',padding:'7px 0',marginRight:'50px', backgroundColor:'#cccc',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <ClipLoader
+                color={'#fff'}
+                loading={isLoggingOut}
+                size={10}
+                aria-label="Loading Spinner"
+                data-testid="loader"
+              />
+            </div>
+          ) : (
+            <button onClick={logoutHandler}>
+              <p>خروج</p>
+              <CiLogout style={{color:'#000',fontSize:15}} />
+            </button>
+          )}
+          
         </div>
     </div>
   )

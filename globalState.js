@@ -6,7 +6,6 @@ import { DB } from './firebaseConfig';
 const GlobalStateContext = createContext();
 
 const initialState = {
-  users: [],
   students: [],
   drivers: [],
   schools: [],
@@ -41,15 +40,7 @@ export const GlobalStateProvider = ({ children }) => {
   const [state, dispatch] = useReducer(globalStateReducer, initialState);
 
   useEffect(() => {
-    // Real-time listeners
-    const unsubscribeUsers = onSnapshot(collection(DB, 'users'), (snapshot) => {
-      const users = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      dispatch({
-        type: 'FETCH_SUCCESS',
-        payload: { users },
-      });
-    });
-
+    
     const unsubscribeStudents = onSnapshot(collection(DB, 'students'), (snapshot) => {
       const students = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       dispatch({
@@ -94,7 +85,6 @@ export const GlobalStateProvider = ({ children }) => {
 
     // Cleanup listeners on unmount
     return () => {
-      unsubscribeUsers();
       unsubscribeStudents();
       unsubscribeDrivers();
       unsubscribeSchools();
