@@ -1,6 +1,6 @@
 import React,{useState,useEffect} from 'react'
 import Image from 'next/image'
-import { updateDoc,doc,writeBatch,collection, getDocs } from "firebase/firestore"
+import { updateDoc,doc,writeBatch} from "firebase/firestore"
 import { DB } from '../firebaseConfig'
 import ClipLoader from "react-spinners/ClipLoader"
 import { useGlobalState } from '../globalState'
@@ -10,7 +10,7 @@ import { FcCalendar } from "react-icons/fc";
 import { Modal, Table } from "antd";
 import dayjs from "dayjs";
 import { GoogleMap,Marker } from "@react-google-maps/api";
-import miniVan from '../images/miniVan.png'
+import miniVan from '../images/minivan.png'
 import maps from '../images/google-maps.png'
 import money from '../images/dollar.png'
 
@@ -258,7 +258,7 @@ const Students = () => {
     }
   };
 
-  //Edit Student Data 
+  //Edit Student car type 
   const editStudentData = async() => {
     if (!newStudentCarType) {
       alert("الرجاء اختيار نوع السيارة");
