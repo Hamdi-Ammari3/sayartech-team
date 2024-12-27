@@ -324,7 +324,7 @@
     overflow-x: hidden;
 }
 .students-section-inner-titles{
-    height: 60px;
+    height: 55px;
     display: flex;
     flex-direction: row-reverse;
     align-items: center;
@@ -337,6 +337,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
+}
+.reset-status-btn{
+  width: 80px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 40px;
+  border: 1px solid #cccc;
+  background-color: #F4F5FA;
+  box-shadow: -10px 10px 3px -14px rgba(0,0,0,0.5);
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
 }
 .students-or-driver-btn{
   width: 120px;
@@ -666,7 +681,10 @@
     justify-content: space-between;
     background-color: #fff;
   }
-  .eligible-item-filter-input input, .eligible-item-filter-input select,.student-edit-car-type select{
+  .eligible-item-filter-input input, 
+  .eligible-item-filter-input select,
+  .student-edit-car-type > select,
+  .student-edit-car-type > input {
     width: 250px;
     height: 30px;
     text-align: center;
@@ -680,9 +698,14 @@
   .eligible-item-filter-input select,.student-edit-car-type select{
     height: 33px;
   }
+  .student-edit-car-type > input{
+    width: 170px;
+    margin-left: 10px
+  }
   .eligible-item-filter-input input:focus,
   .eligible-item-filter-input select:focus,
-  .student-edit-car-type select:focus{
+  .student-edit-car-type > select:focus,
+  .student-edit-car-type > input:focus{
     outline: none;
   }
   .eligible-item-boxes-container{
@@ -766,6 +789,14 @@
     align-items: center;
     margin-bottom: 10px;
   }
+  .map-distance-div{
+    text-align: center;
+    margin: 0;
+  }
+  .map-distance-div > p {
+    margin: 0;
+    font-weight: bold;
+  }
   .showCalendarBtn{
     margin-right: 5px;
   }
@@ -834,10 +865,6 @@
   .student-edit-car-type select{
     width: 180px;
     margin-left: 10px;
-  }
-  .student-edit-car-type button{
-    width: 70px;
-    padding: 6px;
   }
   .student-detailed-data-main-second-box{
     height: 63vh;

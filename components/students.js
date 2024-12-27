@@ -1,14 +1,18 @@
 import React,{useState,useEffect} from 'react'
-import { updateDoc,doc,writeBatch } from "firebase/firestore"
+import Image from 'next/image'
+import { updateDoc,doc,writeBatch,collection, getDocs } from "firebase/firestore"
 import { DB } from '../firebaseConfig'
 import ClipLoader from "react-spinners/ClipLoader"
 import { useGlobalState } from '../globalState'
 import { BsArrowLeftShort } from "react-icons/bs"
 import { FcDeleteDatabase } from "react-icons/fc";
 import { FcCalendar } from "react-icons/fc";
-import { FcEditImage } from "react-icons/fc";
 import { Modal, Table } from "antd";
 import dayjs from "dayjs";
+import { GoogleMap,Marker } from "@react-google-maps/api";
+import miniVan from '../images/miniVan.png'
+import maps from '../images/google-maps.png'
+import money from '../images/dollar.png'
 
 const Students = () => {
   const { students,drivers,schools } = useGlobalState()
@@ -20,13 +24,20 @@ const Students = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [newStudentCarType,setNewStudentCarType] = useState('')
   const [loading,setLoading] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingTimetable, setEditingTimetable] = useState([]);
-  const [isEditingTimeTable, setIsEditingTimeTable] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isModalVisible, setIsModalVisible] = useState(false)
+  const [editingTimetable, setEditingTimetable] = useState([])
+  const [isEditingTimeTable, setIsEditingTimeTable] = useState(false)
   const [isSavingNewTimeTable,setIsSavingNewTimeTable] = useState(false)
-  const [selectedDays, setSelectedDays] = useState([]);
-
+  const [selectedDays, setSelectedDays] = useState([])
+  const [isModalMapVisible,setIsModalMapVisible] = useState(false)
+  const [homeCoords, setHomeCoords] = useState(null)
+  const [schoolCoords, setSchoolCoords] = useState(null)
+  const [distance, setDistance] = useState(null)
+  const [isEditingMonthlyFee,setIsEditingMonthlyFee] = useState(false)
+  const [newStudentMonthlyFee,setNewStudentMonthlyFee] = useState(0)
+  const [editMonthlyFeeLoading,setEditMonthlyFeeLoading] = useState(false)
+  
   // Filtered students based on search term
   const filteredStudents = students.filter((student) =>{
     //check name
@@ -69,6 +80,7 @@ const Students = () => {
   const goBack = () => {
     setSelectedStudent(null);
     setIsEditing(false)
+    setIsEditingMonthlyFee(false)
   };
 
   //Calculate student age
@@ -87,7 +99,7 @@ const Students = () => {
     return age;
   };
 
-  // Find and set driver info when a student is selected
+  //Find and set driver info when a student is selected
   useEffect(() => {
     if (selectedStudent) {
       const assignedDriver = drivers.find(
@@ -97,6 +109,55 @@ const Students = () => {
       
     }
   }, [selectedStudent, drivers]);
+
+  //Fetch home and school location 
+  useEffect(() => {
+    if (selectedStudent) {
+      const homeLocation = selectedStudent?.student_home_location?.coords;
+      const schoolLocation = selectedStudent?.student_school_location;
+
+      if (homeLocation && schoolLocation) {
+        setHomeCoords({
+          lat: homeLocation.latitude,
+          lng: homeLocation.longitude,
+        });
+        setSchoolCoords({
+          lat: schoolLocation.latitude,
+          lng: schoolLocation.longitude,
+        });
+
+        // Calculate distance
+        const calculatedDistance = getDistance(
+          homeLocation.latitude,
+          homeLocation.longitude,
+          schoolLocation.latitude,
+          schoolLocation.longitude
+        );
+        setDistance(calculatedDistance);
+      }
+    }
+  }, [selectedStudent]);
+
+  // Haversine formula to calculate distance
+  const getDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Radius of Earth in kilometers
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return (R * c).toFixed(2); // Distance in kilometers
+  };
+
+  // Map Style
+  const containerStyle = {
+    width: '100%',
+    height: '100%'
+  }
 
   // Week days
   const daysOfWeek = [
@@ -118,6 +179,16 @@ const Students = () => {
     'باص متوسط ١٤ راكب',
     'باص كبير ٣٠ راكب',
   ]
+
+  //Open Map Modal
+  const handleOpenMapModal = () => {
+    setIsModalMapVisible(true)
+  }
+
+  //Close Map Modal
+  const handleCloseMapModal = () => {
+    setIsModalMapVisible(false)
+  }
 
   //Open the time-table Modal
   const handleOpenModal = () => {
@@ -202,19 +273,53 @@ const Students = () => {
 
       alert("تم تعديل نوع السيارة بنجاح!");
 
-      // Optionally update the local state if needed
+      // Update the local state
       setSelectedStudent((prev) => ({
         ...prev,
         student_car_type: newStudentCarType,
       }));
 
       // Clear the selection
-      setNewStudentCarType("");
+      setNewStudentCarType("")
+      setIsEditing(false)
     } catch (error) {
       console.error("Error updating student car type:", error);
       alert("فشل في تعديل نوع السيارة. الرجاء المحاولة مرة أخرى.");
     } finally {
       setLoading(false)
+    }
+  }
+
+  //Edit student monthly fee
+  const editStudentMonthlyFee = async () => {
+    if (newStudentMonthlyFee < 0) {
+      alert("الرجاء ادخال مبلغ مالي صحيح");
+      return;
+    }
+
+    setEditMonthlyFeeLoading(true);
+
+    try {
+      const studentRef = doc(DB, "students", selectedStudent.id);
+
+      await updateDoc(studentRef, {
+        monthly_sub: Number(newStudentMonthlyFee),
+      });
+
+      alert("تم اضافة المبلغ المالي بنجاح");
+
+      // Update the local state
+      setSelectedStudent((prev) => ({
+        ...prev,
+        monthly_sub: newStudentMonthlyFee,
+      }));
+      setNewStudentMonthlyFee(0)
+      setIsEditingMonthlyFee(false)
+    } catch (error) {
+      console.error("Error updating the monthly subscription fee:", error);
+      alert("حدث خطا. الرجاء المحاولة مرة ثانية");
+    } finally {
+      setEditMonthlyFeeLoading(false)
     }
   }
 
@@ -282,7 +387,55 @@ const Students = () => {
 
               <div className="student-detailed-data-main-firstBox">
                   <div>
-                    <h5>{selectedStudent.student_full_name}</h5>
+                    <h5 style={{marginLeft:'4px'}}>{selectedStudent.student_full_name}</h5>
+                    <h5 style={{marginLeft:'4px'}}>-</h5>
+                    <h5 style={{marginLeft:'4px'}}>{selectedStudent.student_birth_date ? calculateAge(selectedStudent.student_birth_date) : '-'}</h5>
+                    <h5 style={{marginLeft:'10px'}}>سنة</h5>
+                    <button className="student-edit-car-type-btn" onClick={handleOpenMapModal}>
+                      <Image src={maps} width={16} height={16} alt='maps'/>
+                    </button>
+                    {/* Student Map Modal */}
+                    <Modal
+                      title='موقع الطالب'
+                      open={isModalMapVisible}
+                      onCancel={handleCloseMapModal}
+                      footer={[
+                        <div className='map-distance-div' key='distance'>
+                          <p>{distance} km</p>
+                        </div>
+                      ]}
+                      centered
+                    >
+                      <div style={{ height: '500px', width: '100%',margin:'0px' }}>
+                        {homeCoords && schoolCoords ? (
+                          <GoogleMap
+                          mapContainerStyle={containerStyle}
+                          center={homeCoords}
+                          zoom={12}
+                        >
+                          <Marker 
+                            position={homeCoords}
+                            label={{
+                              text:'المنزل',
+                              color:'#000',
+                              fontWeight:'bold'
+                            }}
+                          />
+                          <Marker 
+                            position={schoolCoords}
+                            label={{
+                              text:'المدرسة',
+                              color:'#000',
+                              fontWeight:'bold'
+                            }}
+                          />
+                        </GoogleMap> 
+                        ) : (
+                          <h5>Loading</h5>
+                        )}                   
+                      </div>
+                      
+                    </Modal>
                   </div>
                   <div>
                     <h5 style={{marginLeft:'5px'}}>{selectedStudent.student_school || '-'}</h5>
@@ -404,10 +557,6 @@ const Students = () => {
                     </Modal>
                   </div>
                   <div>
-                    <h5 style={{marginLeft:'10px'}}>{selectedStudent.student_birth_date ? calculateAge(selectedStudent.student_birth_date) : '-'}</h5>
-                    <h5>سنة</h5>
-                  </div>
-                  <div>
                     <h5 style={{marginLeft:'4px'}}>{selectedStudent.student_home_address || '-'}</h5>
                     <h5 style={{marginLeft:'4px'}}>-</h5>
                    <h5>{selectedStudent.student_street || '-'}</h5>
@@ -434,9 +583,9 @@ const Students = () => {
                         </select>
                         <>
                           {loading ? (
-                            <div style={{ display:'flex',alignItems:'center',justifyContent:'center'}}>
+                            <div style={{ width:'50px',height:'32px',margin:'0px 0px 0px 5px',backgroundColor:' #955BFE',padding:'0px',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center'}}>
                               <ClipLoader
-                                color={'#955BFE'}
+                                color={'#fff'}
                                 loading={loading}
                                 size={10}
                                 aria-label="Loading Spinner"
@@ -444,16 +593,51 @@ const Students = () => {
                               />
                             </div>
                           ) : (
-                            <button onClick={() => editStudentData()}>تعديل</button>
+                            <button style={{width:'50px',marginLeft:'5px',padding:'7px'}} onClick={() => editStudentData()}>تعديل</button>
                           )}
                         </>
+                        <button onClick={() => setIsEditing(false)} style={{width:'50px',padding:'7px',border:'1px solid #955BFE',color:'#955BFE',backgroundColor:'#fff'}} className='cancel-time-table-button'>الغاء</button>
                       </div>
                     ) : (
                       <button className="student-edit-car-type-btn" onClick={() => setIsEditing(true)}>
-                        <FcEditImage  size={24} className="email-back-button-icon"  />
+                        <Image src={miniVan} width={22} height={22} alt='minivan'/>
                       </button>
                     )}
                     
+                  </div>
+                  <div>
+                    <h5 style={{marginLeft:'5px'}}>
+                      {selectedStudent.monthly_sub ? Number(selectedStudent.monthly_sub).toLocaleString('en-US') : '0'}
+                    </h5>
+                    <h5 style={{marginLeft:'10px'}}>دينار</h5>
+                    {isEditingMonthlyFee ? (
+                      <div className='student-edit-car-type'>
+                        <input 
+                          value={newStudentMonthlyFee}
+                          onChange={(e) => setNewStudentMonthlyFee(e.target.value)}
+                          type='number'/>
+                        <>
+                          {editMonthlyFeeLoading ? (
+                            <div style={{ width:'50px',height:'32px',margin:'0px 0px 0px 5px',backgroundColor:' #955BFE',padding:'0px',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                              <ClipLoader
+                                color={'#fff'}
+                                loading={editMonthlyFeeLoading}
+                                size={10}
+                                aria-label="Loading Spinner"
+                                data-testid="loader"
+                              />
+                            </div>
+                          ) : (
+                            <button style={{width:'50px',marginLeft:'5px',padding:'7px'}} onClick={() => editStudentMonthlyFee()}>تعديل</button>
+                          )}
+                        </>
+                        <button onClick={() => setIsEditingMonthlyFee(false)} style={{width:'50px',padding:'7px',border:'1px solid #955BFE',color:'#955BFE',backgroundColor:'#fff'}} className='cancel-time-table-button'>الغاء</button>
+                      </div>
+                    ) : (
+                    <button className="student-edit-car-type-btn" onClick={() => setIsEditingMonthlyFee(true)}>
+                      <Image src={money} width={18} height={18} alt='money'/>
+                    </button>
+                    )}
                   </div>
                   <div>
                     <h5>{selectedStudent.id}</h5>

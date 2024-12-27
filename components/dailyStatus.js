@@ -1,5 +1,8 @@
 import React,{useState} from 'react'
 import { useGlobalState } from '../globalState'
+import { writeBatch, collection, getDocs, doc } from 'firebase/firestore';
+import { DB } from '../firebaseConfig'
+import { GrPowerReset } from "react-icons/gr"
 
 const DailyStatus = () => {
     const [viewType, setViewType] = useState('students')
@@ -8,6 +11,7 @@ const DailyStatus = () => {
     const [driverState,setDriverState] = useState('')
     const [studentNameFilter,setStudentNameFilter] = useState('')
     const [studentState,setStudentState] = useState('')
+    const [isResetting, setIsResetting] = useState(false)
 
     // Determine unified driver status
     const getDriverUnifiedStatus = (driver) => {
@@ -91,14 +95,73 @@ const DailyStatus = () => {
         if (status === undefined || status === null) {
           return 'no-rating';
         }
-        if (status === 'at home' || status === 'at school' || status === 'start the first trip' || status === 'start the second trip') {
+        if (status === 'at home' || status === 'at school' || status === 'finish the first trip' || status === 'finish the second trip') {
           return 'student-at-home';
         }
-        if (status === 'going to home' || status === 'going to school' || status === 'finish the first trip' || status === 'finish the second trip') {
+        if (status === 'going to home' || status === 'going to school' || status === 'start the first trip' || status === 'start the second trip') {
           return 'in-route';
         }
       };
 
+    // Reset All Drivers and Students
+    const resetAll = async () => {
+        if (isResetting) return;
+
+        const confirmReset = window.confirm('هل تريد فعلا اعادة ضبط حالة الطلاب و السواق')
+        if(!confirmReset) return;
+
+        setIsResetting(true);
+    try {
+      const batch = writeBatch(DB);
+
+      // Fetch all drivers and reset their statuses
+      const driversSnapshot = await getDocs(collection(DB, 'drivers'));
+      driversSnapshot.forEach((driverDoc) => {
+        const driverData = driverDoc.data();
+        const driverRef = doc(DB, 'drivers', driverDoc.id);
+
+        const resetAssignedStudents = driverData.assigned_students.map((student) => ({
+          ...student,
+          picked_up: false,
+          dropped_off: false,
+          picked_from_school: false,
+          checked_in_front_of_school: false,
+          tomorrow_trip_canceled: false,
+        }));
+
+        batch.update(driverRef, {
+          assigned_students: resetAssignedStudents,
+          first_trip_status: 'not started',
+          second_trip_status: 'finished',
+          trip_canceled: false,
+        });
+
+      });
+
+      // Fetch all students and reset their statuses
+      const studentsSnapshot = await getDocs(collection(DB, 'students'));
+      studentsSnapshot.forEach((studentDoc) => {
+        const studentRef = doc(DB, 'students', studentDoc.id);
+
+        batch.update(studentRef, {
+          student_trip_status: 'at home',
+          picked_up: false,
+          tomorrow_trip_canceled: false,
+        });
+
+      });
+
+      // Commit batch operation
+      await batch.commit();
+
+      alert('تم اعادة ضبط حالة جميع الطلاب و السواق بنجاح');
+    } catch (error) {
+      console.error('Error resetting data:', error);
+      alert('حدث خطا اثناء اعادة الضبط. يرجى المحاولة مرة ثانية');
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
     // Render titles dynamically
     const renderTitles = () => (
@@ -156,6 +219,13 @@ const DailyStatus = () => {
         <div className='students-section-inner'>
             <div className='students-section-inner-titles'>
                 <div className='students-section-inner-title'>
+                    <button 
+                        className='reset-status-btn' 
+                        onClick={resetAll}
+                        disabled={isResetting}
+                    >
+                        <GrPowerReset/>
+                    </button>
                     <div className={`students-or-driver-btn ${viewType === 'drivers' ? 'active' : ''}`} onClick={() => setViewType('drivers')}>
                         <h4>السواق</h4>
                     </div>

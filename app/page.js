@@ -1,7 +1,7 @@
 'use client'
 import React,{useState,useEffect} from 'react'
 import {useRouter} from 'next/navigation'
-import { useGlobalState } from '../globalState'
+import { LoadScript } from "@react-google-maps/api";
 import ClipLoader from "react-spinners/ClipLoader"
 import './style.css'
 import Navbar from '../components/navBar'
@@ -17,10 +17,6 @@ const Dashboard = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [activeSection,setActiveSection] = useState('الرئيسية')
   const router = useRouter();
-  const {privateCarRequests,emails} = useGlobalState()
-
-  const privateCarRequestLength = privateCarRequests.filter(car => car.seen === false).length
-  const emailLength = emails.filter(email => email.seen === false).length
 
 useEffect(() => {
   // Check if admin is logged in
@@ -75,6 +71,7 @@ useEffect(() => {
   }
 
   return (
+    <LoadScript googleMapsApiKey="AIzaSyA-3LcUn0UzzVovibA1YZIL29n1c0GIi9M">
     <div className='dashboard-container'>
       <Navbar/>
       <div className='main-box'>
@@ -137,6 +134,7 @@ useEffect(() => {
         </div>
       </div>
     </div>
+    </LoadScript>
   )
 }
 
