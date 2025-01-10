@@ -1,249 +1,353 @@
 import React,{useState} from 'react'
 import { useGlobalState } from '../globalState'
-import { writeBatch, collection, getDocs, doc } from 'firebase/firestore';
+import { writeBatch, collection, getDocs, doc } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
+import { Modal } from "antd"
 import { GrPowerReset } from "react-icons/gr"
 
 const DailyStatus = () => {
-    const [viewType, setViewType] = useState('students')
-    const { students, drivers } = useGlobalState()
-    const [driverNameFilter, setDriverNameFilter] = useState('')
-    const [driverState,setDriverState] = useState('')
-    const [studentNameFilter,setStudentNameFilter] = useState('')
-    const [studentState,setStudentState] = useState('')
-    const [isResetting, setIsResetting] = useState(false)
+    const { drivers } = useGlobalState()
 
-    // Determine unified driver status
-    const getDriverUnifiedStatus = (driver) => {
-        if (driver.first_trip_status === 'started' && driver.second_trip_status === 'not started') return 'start the first trip';
-        if (driver.first_trip_status === 'finished' && driver.second_trip_status === 'not started') return 'finish the first trip';
-        if (driver.second_trip_status === 'started' && driver.first_trip_status === 'not started') return 'start the second trip';
-        if (driver.second_trip_status === 'finished' && driver.first_trip_status === 'not started') return 'finish the second trip';
+    const [driverNameFilter, setDriverNameFilter] = useState('')
+    const [lineNameFilter, setLineNameFilter] = useState('');
+    const [lineState, setLineState] = useState('');
+    const [selectedStartTime, setSelectedStartTime] = useState('')
+    const [isResetting, setIsResetting] = useState(false)
+    const [isOpeningLineInfoModal,setIsOpeningLineInfoModal] = useState(false)
+    const [selectedLine, setSelectedLine] = useState(null)
+
+    // Filter Handlers
+    const handleLineNameChange = (e) => setLineNameFilter(e.target.value);
+    const handleDriverNameChange = (e) => setDriverNameFilter(e.target.value);
+    const handleLineStateChange = (e) => setLineState(e.target.value);
+
+    // Determine unified line status
+    const getLineUnifiedStatus = (line) => {
+        if (
+            line.first_trip_started === true && 
+            line.first_trip_finished === false &&
+            line.second_trip_started === false &&
+            line.second_trip_finished === false
+
+        ) return 'first trip started';
+        if (
+            line.first_trip_started === true && 
+            line.first_trip_finished === true &&
+            line.second_trip_started === false &&
+            line.second_trip_finished === false
+
+        ) return 'first trip finished';
+        if (
+            line.first_trip_started === true && 
+            line.first_trip_finished === true &&
+            line.second_trip_started === true &&
+            line.second_trip_finished === false
+
+        ) return 'second trip started';
+        if (
+            line.first_trip_started === true && 
+            line.first_trip_finished === true &&
+            line.second_trip_started === true &&
+            line.second_trip_finished === true
+
+        ) return 'second trip finished';
+        if (
+            line.first_trip_started === false && 
+            line.first_trip_finished === false &&
+            line.second_trip_started === false &&
+            line.second_trip_finished === false
+
+        ) return 'second trip finished';
         return '--';
     };
 
-    // Filtered drivers based on search term
-    const filteredDrivers = drivers.filter((driver) => {
-        const matchesName = driverNameFilter === '' || driver.driver_full_name.includes(driverNameFilter)
-        const unifiedStatus = getDriverUnifiedStatus(driver);
-        const matchesState = driverState === '' || unifiedStatus === driverState
-        return matchesName && matchesState;
-    })
-
-    const filteredStudents = students.filter((student) => {
-        const matchesName = studentNameFilter === '' || student.student_full_name.includes(studentNameFilter)
-        const matchesState = studentState === '' || student.student_trip_status === studentState
-        return matchesName && matchesState;
-    })
-
-    const handleNameChange = (e) => {
-        if(viewType === 'drivers') {
-            setDriverNameFilter(e.target.value);
-        } else if (viewType === 'students') {
-            setStudentNameFilter(e.target.value)
+    // Line status in Arabic
+    const getTripArabicNameLine = (status) => {
+        switch (status) {
+            case 'first trip started': return 'رحلة الذهاب بدات';
+            case 'first trip finished': return 'رحلة الذهاب انتهت';
+            case 'second trip started': return 'رحلة العودة بدات';
+            case 'second trip finished': return 'رحلة العودة انتهت';
+            default: return '--';
         }
     };
-
-    const handleDriverState = (e) => {
-        setDriverState(e.target.value)
-    }
-
-    const handleStudentState = (e) => {
-        setStudentState(e.target.value)
-    }
-
-    // student current state arabic meaning
-    const getTripArabicName = (status) => {
-        if (status === undefined || status === null) {
-            return '--';
-        }
-        if (status === 'at home') {
-            return 'في المنزل';
-        }
-        if (status === 'at school') {
-            return 'في المدرسة';
-        }
-        if (status === 'going to home') {
-            return 'في الطريق الى المنزل';
-        }
-        if (status === 'going to school') {
-            return 'في الطريق الى المدرسة';
-        }
-    }
-
-    // driver current state arabic meaning
-    const getTripArabicNameDriver = (status) => {
-        if (status === undefined || status === null) {
-            return '--';
-        }
-        if(status === 'start the first trip') {
-            return 'بدا رحلة الذهاب'
-        }
-        if(status === 'finish the first trip') {
-            return 'اكمل رحلة الذهاب'
-        }
-        if(status === 'start the second trip') {
-            return 'بدا رحلة العودة'
-        }
-        if(status === 'finish the second trip') {
-            return 'اكمل رحلة العودة'
-        }
-    }
 
     // Color based on student trip status
     const getTripClassName = (status) => {
         if (status === undefined || status === null) {
           return 'no-rating';
         }
-        if (status === 'at home' || status === 'at school' || status === 'finish the first trip' || status === 'finish the second trip') {
+        if (status === 'first trip finished' || status === 'second trip finished') {
           return 'student-at-home';
         }
-        if (status === 'going to home' || status === 'going to school' || status === 'start the first trip' || status === 'start the second trip') {
+        if (status === 'first trip started' || status === 'second trip started') {
           return 'in-route';
         }
       };
 
-    // Reset All Drivers and Students
+    // Extract and sort all lines by startTime
+    const allLines = drivers.flatMap((driver) => 
+        driver.line.map((line) => ({
+            ...line,
+            driverName: driver.driver_full_name,
+            driverFName: driver.driver_family_name,
+            driverId: driver.id,
+        }))
+    );
+
+    const sortedLines = allLines
+    .filter((line) => line.line_school_startTime) // Ensure `line_school_startTime` exists
+    .sort((a, b) => {
+        const aDate = a.line_school_startTime?.toDate?.(); // Safely access `toDate()`
+        const bDate = b.line_school_startTime?.toDate?.();
+
+        if (!aDate || !bDate) return 0; // Skip comparison if dates are invalid
+
+        // Extract hours and minutes
+        const aTime = aDate.getHours() * 60 + aDate.getMinutes(); // Total minutes
+        const bTime = bDate.getHours() * 60 + bDate.getMinutes();
+
+        return aTime - bTime; // Sort by time
+    });
+
+    // Get unique start times (formatted as "HH:MM")
+    const uniqueStartTimes = [...new Set(
+        sortedLines.map((line) => {
+            const date = line.line_school_startTime?.toDate?.();
+            if (!date) return null; // Skip if date is invalid
+            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`; // Format as "HH:MM"
+        }).filter(Boolean) // Remove null values
+    )];
+    
+    const filteredLines = sortedLines.filter((line) => {
+        // Filter by start time
+        if (selectedStartTime) {
+            const date = line.line_school_startTime?.toDate?.();
+            if (!date) return false;
+            const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+            if (time !== selectedStartTime) return false;
+        }
+    
+        // Filter by line name
+        if (lineNameFilter && !line.lineName.toLowerCase().includes(lineNameFilter.toLowerCase())) {
+            return false;
+        }
+    
+        // Filter by driver name
+        if (driverNameFilter && !line.driverName.toLowerCase().includes(driverNameFilter.toLowerCase())) {
+            return false;
+        }
+    
+        // Filter by unified line state
+        const unifiedStatus = getLineUnifiedStatus(line);
+        if (lineState && unifiedStatus !== lineState) {
+            return false;
+        }
+    
+        return true;
+    });
+
+    // Handle open line-info Modal
+    const openLineInfoModal = (line) => {
+        setSelectedLine(line)
+        setIsOpeningLineInfoModal(true)
+    }
+
+    // Close line-info Modal
+    const handleCloseLineInfoModal = () => {
+        setSelectedLine(null)
+        setIsOpeningLineInfoModal(false)
+    }
+    
+    // Reset All Lines
     const resetAll = async () => {
         if (isResetting) return;
-
-        const confirmReset = window.confirm('هل تريد فعلا اعادة ضبط حالة الطلاب و السواق')
-        if(!confirmReset) return;
-
         setIsResetting(true);
-    try {
-      const batch = writeBatch(DB);
+    
+        try {
+            const confirmReset = window.confirm('هل تريد فعلا اعادة ضبط حالةالخطوط');
+            if (!confirmReset) {
+                setIsResetting(false);
+                return;
+            }
+    
+            const batch = writeBatch(DB);
+    
+            // Fetch all drivers
+            const driversSnapshot = await getDocs(collection(DB, 'drivers'));
+            const drivers = driversSnapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+    
+            // Loop through drivers
+            for (const driver of drivers) {
+                // Sort driver's lines by startTime
+                const sortedLines = driver.line.sort((a, b) => {
+                    const aTime = a.line_school_startTime?.toDate?.()?.getTime() || 0;
+                    const bTime = b.line_school_startTime?.toDate?.()?.getTime() || 0;
+                    return aTime - bTime;
+                });
+    
+                // Update lines
+                const updatedLines = sortedLines.map((line, index) => ({
+                    ...line,
+                    first_trip_started: false,
+                    first_trip_finished: false,
+                    second_trip_started: false,
+                    second_trip_finished: false,
+                    current_trip: 'first',
+                    line_active: index === 0, // Only the first line is active
+                    students: line.students.map((student) => ({
+                        ...student,
+                        picked_up: false,
+                        picked_from_school: false,
+                        dropped_off: false,
+                        tomorrow_trip_canceled: false,
+                        checked_in_front_of_school: false,
+                    })),
+                }));
+    
+                // Add driver line updates to the batch
+                batch.update(doc(DB, 'drivers', driver.id), { line: updatedLines });
+    
+                // Update students in Firestore
+                for (const line of updatedLines) {
+                    for (const student of line.students) {
+                        const studentDocRef = doc(DB, 'students', student.id);
+                        batch.update(studentDocRef, {
+                            student_trip_status: 'at home',
+                            picked_up: false,
+                        });
+                    }
+                }
+            }
+    
+            // Commit the batch
+            await batch.commit();
 
-      // Fetch all drivers and reset their statuses
-      const driversSnapshot = await getDocs(collection(DB, 'drivers'));
-      driversSnapshot.forEach((driverDoc) => {
-        const driverData = driverDoc.data();
-        const driverRef = doc(DB, 'drivers', driverDoc.id);
-
-        const resetAssignedStudents = driverData.assigned_students.map((student) => ({
-          ...student,
-          picked_up: false,
-          dropped_off: false,
-          picked_from_school: false,
-          checked_in_front_of_school: false,
-          tomorrow_trip_canceled: false,
-        }));
-
-        batch.update(driverRef, {
-          assigned_students: resetAssignedStudents,
-          first_trip_status: 'not started',
-          second_trip_status: 'finished',
-          trip_canceled: false,
-        });
-
-      });
-
-      // Fetch all students and reset their statuses
-      const studentsSnapshot = await getDocs(collection(DB, 'students'));
-      studentsSnapshot.forEach((studentDoc) => {
-        const studentRef = doc(DB, 'students', studentDoc.id);
-
-        batch.update(studentRef, {
-          student_trip_status: 'at home',
-          picked_up: false,
-          tomorrow_trip_canceled: false,
-        });
-
-      });
-
-      // Commit batch operation
-      await batch.commit();
-
-      alert('تم اعادة ضبط حالة جميع الطلاب و السواق بنجاح');
-    } catch (error) {
-      console.error('Error resetting data:', error);
-      alert('حدث خطا اثناء اعادة الضبط. يرجى المحاولة مرة ثانية');
-    } finally {
-      setIsResetting(false);
-    }
-  };
+            alert('تم اعادة ضبط حالة جميع الخطوط');
+        } catch (error) {
+            console.error('Error resetting data:', error);
+            alert('حدث خطأ اثناء اعادة الضبط. يرجى المحاولة مرة ثانية');
+        } finally {
+            setIsResetting(false);
+        }
+    };
+    
 
     // Render titles dynamically
     const renderTitles = () => (
         <div className='students-section-inner-titles'>
+
             <div className='students-section-inner-title'>
                 <input 
-                    onChange={handleNameChange} 
-                    value={viewType === 'drivers' ? driverNameFilter : studentNameFilter}
-                    placeholder='الاسم' 
+                    onChange={handleLineNameChange} 
+                    value={lineNameFilter}
+                    placeholder='الخط' 
                     type='text' 
                     className='students-section-inner-title_search_input'
                 />
             </div>
+
             <div className='students-section-inner-title'>
-                {viewType === 'drivers' ? (
-                    <select
-                        onChange={handleDriverState}
-                        value={driverState}
-                    >
-                        <option value=''>الحالة</option>
-                        <option value='start the first trip'>بدا رحلة الذهاب</option>
-                        <option value='finish the first trip'>اكمل رحلة الذهاب</option>
-                        <option value='start the second trip'>بدا رحلة العودة</option>
-                        <option value='finish the second trip'>اكمل رحلة العودة</option>
-                    </select>
-                ) : (
-                    <select
-                        onChange={handleStudentState}
-                        value={studentState}
-                    >
-                        <option value=''>الحالة</option>
-                        <option value='at home'>في المنزل</option>
-                        <option value='going to school'>في الطريق الى المدرسة</option>
-                        <option value='at school'>في المدرسة</option>
-                        <option value='going to home'>في الطريق الى المنزل</option>
-                    </select>
-                )}
+                <input 
+                    onChange={handleDriverNameChange} 
+                    value={driverNameFilter}
+                    placeholder='السائق' 
+                    type='text' 
+                    className='students-section-inner-title_search_input'
+                />
+            </div>
+
+            <div style={{flex:4}} className='students-section-inner-title'>
+                <select
+                    onChange={handleLineStateChange}
+                    value={lineState}
+                    style={{width: '200px'}}
+                >
+                    <option value=''>الحالة</option>
+                    <option value='first trip started'> رحلة الذهاب بدات</option>
+                    <option value='first trip finished'>رحلة الذهاب انتهت</option>
+                    <option value='second trip started'>رحلة العودة بدات</option>
+                    <option value='second trip finished'>رحلة العودة انتهت </option>
+                </select>
             </div>
         </div>
     );
 
-    // Render rows dynamically based on viewType
+    // Render rows dynamically
     const renderRows = () => {
-        const data = viewType === 'drivers' ? filteredDrivers : filteredStudents;
-        return data.map((item, index) => (
-        <div key={index} className='single-item'>
-            <h5>{viewType === 'drivers' ? item.driver_full_name : item.student_full_name || '-'}</h5>
-            <h5 className={viewType === 'students' ? getTripClassName(item.student_trip_status) : getTripClassName(getDriverUnifiedStatus(item))}>{viewType === 'drivers' ? getTripArabicNameDriver(getDriverUnifiedStatus(item)) : getTripArabicName(item.student_trip_status)}</h5>
-        </div>
-        ));
-    };
-    
-    return (
-    <div className='white_card-section-container'>
-        <div className='students-section-inner'>
-            <div className='students-section-inner-titles'>
-                <div className='students-section-inner-title'>
-                    <button 
-                        className='reset-status-btn' 
-                        onClick={resetAll}
-                        disabled={isResetting}
+        return filteredLines.map((line, index) => {
+            const unifiedStatus = getLineUnifiedStatus(line);
+            return (
+                <div key={index} className="single-item">
+                    <h5
+                        onMouseEnter={(e) => (e.target.style.textDecoration = "underline")} // Add underline on hover
+                        onMouseLeave={(e) => (e.target.style.textDecoration = "none")}
+                        onClick={() => openLineInfoModal(line)}
+                    >{line.lineName}</h5>
+                    <Modal
+                        title={selectedLine?.lineName}
+                        open={isOpeningLineInfoModal}
+                        onCancel={handleCloseLineInfoModal}
+                        centered
+                        footer={null}
                     >
-                        <GrPowerReset/>
-                    </button>
-                    <div className={`students-or-driver-btn ${viewType === 'drivers' ? 'active' : ''}`} onClick={() => setViewType('drivers')}>
-                        <h4>السواق</h4>
-                    </div>
-                    <div className={`students-or-driver-btn ${viewType === 'students' ? 'active' : ''}`} onClick={() => setViewType('students')}>
-                        <h4>الطلاب</h4>
-                    </div>
+                        <div className='line-info-conainer'>
+                            {selectedLine?.students.map((student, index) => (
+                                <div key={index} className='line-info-student'>
+                                    <p>{student.name} {student.family_name}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </Modal>
+                    <h5>{line.driverName} {line.driverFName}</h5>
+                    <h5 style={{flex:4}} className={getTripClassName(unifiedStatus)}>
+                        {getTripArabicNameLine(unifiedStatus)}
+                    </h5>
                 </div>
-            </div>
+            );
+        });
+    };
 
-            {renderTitles()}
+    return (
+        <div className='white_card-section-container'>
+            {allLines.length === 0 ? (
+                <div>Loading data...</div>
+            ) : (
+                <div className='students-section-inner'>
+                    <div className='students-section-inner-titles'>
+                        <div className='students-section-inner-title'>
+                            <button 
+                                className='reset-status-btn' 
+                                onClick={resetAll}
+                                disabled={isResetting}
+                            >
+                                <GrPowerReset />
+                            </button>
+                            <div className='line-start-times'> 
+                                {uniqueStartTimes.map((time,index) => (
+                                    <button
+                                        key={index}
+                                        className={`students-or-driver-btn ${selectedStartTime === time ? 'active' : ''}`}
+                                        onClick={() => setSelectedStartTime(time === selectedStartTime ? '' : time)}
+                                    >
+                                        {time}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
 
-            <div>
-                {renderRows()}
-            </div>
+                    {renderTitles()}
+                    
+                    {renderRows()}
 
+                </div>
+            )}
         </div>
-    </div>
-)
+    )
 }
 
 export default DailyStatus

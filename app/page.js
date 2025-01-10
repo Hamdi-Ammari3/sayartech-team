@@ -7,6 +7,7 @@ import './style.css'
 import Navbar from '../components/navBar'
 import Main from '../components/main'
 import DailyStatus from '../components/dailyStatus'
+import Connect from '../components/connect';
 import Students from '../components/students'
 import Drivers from '../components/drivers'
 import Schools from '../components/schools'
@@ -55,6 +56,8 @@ useEffect(() => {
         return <Main/>
       case 'الحالة اليومية':
         return <DailyStatus/>
+      case 'ربط الطلاب مع سواق':
+        return <Connect/>
       case 'الطلاب' :
         return <Students/>
       case 'السواق':
@@ -90,6 +93,13 @@ useEffect(() => {
               className={activeSection === 'الحالة اليومية' ? 'active':''}
             >
               <h4 >الحالة اليومية</h4>
+            </div>
+
+            <div
+              onClick={() => handleSectionSelect('ربط الطلاب مع سواق')}
+              className={activeSection === 'ربط الطلاب مع سواق' ? 'active':''}
+            >
+              <h4 >ربط الطلاب مع سواق</h4>
             </div>
 
             <div

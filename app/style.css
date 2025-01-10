@@ -1,3 +1,8 @@
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 #app-container{
     margin: 0;
     padding: 0;
@@ -315,8 +320,8 @@
 }
 .white_card-section-container{
     width:70vw;
-    height:70vh;
-    margin-top: 40px;
+    height:80vh;
+    margin-top: 10px;
     background-color: #fff;
     border-radius: 10px;
     box-shadow: -10px 13px 5px -14px rgba(0,0,0,0.5);
@@ -338,7 +343,13 @@
     align-items: center;
     justify-content: center;
 }
-.reset-status-btn{
+.line-start-times{
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: center;
+}
+.reset-status-btn,.students-or-driver-btn{
   width: 80px;
   height: 30px;
   display: flex;
@@ -354,26 +365,122 @@
   font-weight: bold;
 }
 .students-or-driver-btn{
-  width: 120px;
-  height: 30px;
-  margin-inline: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #cccc;
-  box-shadow: -10px 10px 3px -14px rgba(0,0,0,0.5);
-  border-radius: 7px;
-  cursor: pointer;
-}
-.students-or-driver-btn > h4{
-  font-size: 16px;
-  font-weight: 400;
-  margin: 0;
+  margin-right: 10px;
 }
 .active {
   background-color: #955BFE;
   color: #fff!important;
   box-shadow: -10px 13px 5px -14px rgba(0,0,0,0.5);
+}
+.connect-student-driver-container{
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.connect-student-driver-container > div {
+  width: 100%;
+}
+.connect-student-driver-header{
+  height: 6vh;
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: center;
+  align-items: center;
+}
+.filter-item{
+  position: relative;
+  align-items: center;
+}
+.filter-item > input,.filter-item > select {
+  width: 250px !important;
+  height: 30px !important;
+}
+.filter-item > select {
+  margin-inline: 10px;
+}
+.filter-item > button,.popup-marker-info > button {
+  width: 80px !important;
+  height: 30px !important;
+}
+.autocomplete-suggestions {
+  width: 250px;
+  list-style: none;
+  padding: 0;
+  margin: 3px 0 0 0;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  max-height: 150px;
+  overflow-y: auto;
+  position: absolute;
+  z-index: 1000;
+}
+.autocomplete-item {
+  font-size: 15px;
+  text-align: center;
+  padding: 5px;
+  cursor: pointer;
+  background-color: #fff;
+}
+.autocomplete-item:hover {
+  background-color: #f0f0f0;
+}
+.selected-tag{
+  height: 30px;
+  padding: 0 10px;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  background-color: #F4F5FA;
+  border-radius: 10px;
+}
+.selected-tag > h5{
+  margin-left: 10px;
+  font-weight: 400;
+}
+.selected-driver-close-icon{
+  border: none;
+  background-color: transparent;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.connect-student-driver-main{
+  height: 75vh;
+}
+.popup-marker-info{
+  width: 150px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.gm-style-iw-chr > button{
+  height: 30px !important;
+  width: 30px !important;
+}
+.gm-style-iw-chr > button > span {
+  width: 17px !important;
+  height: 17px !important;
+  margin: 0px !important;
+}
+.connect-student-driver-footer{
+  height: 6vh;
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: center;
+  align-items: center;
+}
+.gm-style .gm-style-iw{
+  font-size: 14px;
+  font-weight: bold;
 }
 .students-section-inner-title:nth-child(1) {
     flex: 4;
@@ -384,16 +491,16 @@
 .students-section-inner-title:nth-child(3) {
     flex: 3;
 }
-.students-section-inner-title > input {
+.students-section-inner-title > input, .filter-item > input {
     width: 200px;
-    height: 25px;
+    height: 30px;
     text-align: center;
     font-size: 16px;
     font-weight: 700;
     border: 1px solid #f1f1f1;
     border-radius: 10px;
 }
-.students-section-inner-title > select {
+.students-section-inner-title > select, .filter-item > select {
     height: 30px;
     color: #747474;
     text-align: center;
@@ -408,7 +515,12 @@
 .students-section-inner-title:nth-child(3) > select {
     width: 150px;
 }
-.students-section-inner-title_search_input:focus,.students-section-inner-title > select:focus{
+.students-section-inner-title_search_input:focus,
+.students-section-inner-title > select:focus,
+.adding_new_line_form > select:focus,
+.filter-item > input:focus,
+.filter-item > select:focus
+{
     outline: none;
 }
 .driver-rating-box{
@@ -458,6 +570,7 @@
 .single-item h5 {
     font-weight: 400;
     text-align: center;
+    
 }
 .single-item h5:nth-of-type(1){
     flex: 4;
@@ -584,7 +697,7 @@
   }
   .item-detailed-data-main{
     width: 100%;
-    height: 63vh;
+    height: 73vh;
     display: flex;
     flex-direction: row-reverse;
     align-items: center;
@@ -596,72 +709,33 @@
     padding: 0;
   }
   .item-detailed-data-main-firstBox{
-    height: 63vh;
-    width: 40%;
+    height: 70vh;
+    width: 50%;
+    display: flex;
+    flex-direction:column;
+    justify-content: space-around;
+    align-items: center;
+    overflow: auto;
+  }
+  .firstBox-image-box{
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+  }
+  .firstBox-text-box{
+    width: 100%;
     display: flex;
     flex-direction:column;
     justify-content: center;
     align-items: center;
-    overflow: auto;
   }
-  .item-detailed-data-main-firstBox div {
+  .firstBox-text-box > div{
+    width: 100%;
     display: flex;
     flex-direction: row-reverse;
     justify-content: center;
     align-items: center;
-    margin-bottom: 10px;
-  }
-  .item-detailed-data-main-second-box{
-    height: 63vh;
-    width: 60%;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    overflow: auto;
-  }
-  .item-detailed-data-main-second-box-insider{
-    height: 60vh;
-    width: 100%;
-    display: flex;
-    flex-direction:column;
-    justify-content: flex-end;
-    align-items: center;
-  }
-  .item-detailed-data-main-second-box-buttons-div{
-    width: 100%;
-    height: 8vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  .showEligibleBtn,.showEligibleBtnActive {
-    width: 120px;
-    height: 35px;
-    display: flex;
-    flex-direction: row-reverse;
-    justify-content: center;
-    align-items: center;
-    padding: 8px;
-    margin: 0 5px;
-    background-color: #fff;
-    border: 1px solid #ccc;
-    box-shadow: -10px 10px 3px -14px rgba(0,0,0,0.5);
-    border-radius: 7px;
-    text-align: center;
-    cursor: pointer;
-    font-weight: 700;
-  }
-  .showEligibleBtnActive{
-    background-color: #955BFE;
-    border: 1px solid #955BFE;
-    color: #fff;
-  }
-  .item-detailed-data-main-second-box-content{
-    height: 47vh;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
   .eligible-item-container{
     width: 100%;
@@ -705,7 +779,10 @@
   .eligible-item-filter-input input:focus,
   .eligible-item-filter-input select:focus,
   .student-edit-car-type > select:focus,
-  .student-edit-car-type > input:focus{
+  .student-edit-car-type > input:focus,
+  .adding_new_line_main > input,
+  .adding_new_line_main > select
+  {
     outline: none;
   }
   .eligible-item-boxes-container{
@@ -725,7 +802,7 @@
     justify-content: center;
     margin-top: 5px;
   }
-  .eligible-item-box-btn,.student-edit-car-type button{
+  .student-edit-car-type button{
     width: 200px;
     padding: 10px 0;
     border: none;
@@ -737,16 +814,156 @@
     font-weight: 700;
     cursor: pointer;
   }
-  .assinged-item-container{
+  .item-detailed-data-main-second-box{
+    height: 70vh;
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .assinged-item-box-title{
+    width: 200px;
+    height: 7vh;
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    justify-content: space-around;
+  }
+  .assinged-item-box-title > h5 {
+    font-weight: bold;
+  }
+  .assinged-item-box-main{
+    width: 80%;
+    height: 50vh;
+    margin-top: 15px;
+  }
+  .assinged-item-box-item{
     width: 100%;
-    height: 44vh;
-    padding: 10px 0;
+    height: 40px;
+    margin-bottom: 5px;
+    border: 1px solid #f1f1f1;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+  }
+  .assinged-item-box-item > div {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .assinged-item-box-item > h5 {
+    cursor: pointer;
+    text-decoration: "none";
+  }
+  .student-dropdown {
+    width: 100%;
+    padding-inline: 22px;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+  }
+  .student-dropdown-open{
+    width: 100%;
+    background-color: #F4F5FA;
+    padding-inline: 22px;
+    margin-bottom: 10px;
+  }
+  .student-dropdown.student-dropdown-open {
+    max-height: 150px;
+    opacity: 1;
+    overflow: auto;
+  }
+  .student-dropdown-item {
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid #fff;
+  }
+  .no-students {
+    text-align: center;
+    padding: 10px;
+    color: gray;
+  }
+  .adding_new_line_main{
+    height: 400px;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .driver-newgroup-assign{
+    width: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 0;
+    border-radius: 10px;
+    background-color: #955BFE;
+    color: #fff;
+    cursor: pointer;
+  }
+  .adding_new_line_main > select {
+    width: 300px;
+    height: 35px;
+    margin-bottom: 15px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    border: 1px solid #f1f1f1;
+    border-radius: 7px;
+  }
+  .adding_new_line_main > input,.private_car_request_form_date_day_input {
+    width: 300px;
+    height: 35px;
+    margin-bottom: 15px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    border: 1px solid #f1f1f1;
+    border-radius: 7px;
+  }
+  .line-info-conainer{
+    min-height: 200px;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .line-info-conainer > div {
+    display: flex;
+    flex-direction: row-reverse;
+  }
+  .private_car_request_form_date_day_input{
+    cursor:default;
+  }
+  .private_car_request_form_date_day_input:focus {
+     outline: none;
+  }
+  .adding_new_line_main > button, .filter-item > button, .popup-marker-info > button {
+    width: 120px;
+    height: 35px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    border: none;
+    border-radius: 7px;
+    background-color: #955BFE;
+    color: #fff;
+    cursor: pointer;
+  }
+  .assinged-item-box-map{
+    width: 100%;
+    height: 55vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    overflow-y: auto;
-    box-sizing: border-box;
+    overflow: auto;
   }
   .assinged-item-box{
     border: 1px solid #f1f1f1;
@@ -959,7 +1176,7 @@
    font-size: 16px;
    font-weight: 700;
 }
-.private_car_request_form_date_day_input:focus {
+.private_car_request_form_date_day_input:focus,.adding_new_line_form > input {
     outline: none;
  }
  .private_car_request_form_date_time_input:focus{
