@@ -134,6 +134,7 @@ const Connect = () => {
                 },
                 school_name:selectedStudent.student_school,
                 student_state:selectedStudent.student_state,
+                student_city:selectedStudent.student_city,
                 student_street:selectedStudent.student_street,
                 tomorrow_trip_canceled: false,
                 monthly_sub:selectedStudent.monthly_sub

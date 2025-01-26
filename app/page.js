@@ -19,15 +19,15 @@ const Dashboard = () => {
   const [activeSection,setActiveSection] = useState('الرئيسية')
   const router = useRouter();
 
-useEffect(() => {
   // Check if admin is logged in
-  const adminLoggedIn = localStorage.getItem('adminLoggedIn');
-  if (!adminLoggedIn) {
-    router.push('/login'); // Redirect to login page if not authenticated
-  } else {
-    setIsAuthenticated(true); // Allow access to the dashboard
-  }
-}, []);
+  useEffect(() => {
+    const adminLoggedIn = localStorage.getItem('adminLoggedIn');
+    if (!adminLoggedIn) {
+      router.push('/login'); // Redirect to login page if not authenticated
+    } else {
+      setIsAuthenticated(true); // Allow access to the dashboard
+    }
+  }, []);
 
 
   if (!isAuthenticated) {

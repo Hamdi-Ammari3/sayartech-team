@@ -1,15 +1,15 @@
 import React,{useState,useEffect} from 'react'
 import Image from 'next/image'
-import { updateDoc,doc,writeBatch} from "firebase/firestore"
+import { updateDoc,doc,getDoc,writeBatch} from "firebase/firestore"
 import { DB } from '../firebaseConfig'
 import ClipLoader from "react-spinners/ClipLoader"
 import { useGlobalState } from '../globalState'
 import { BsArrowLeftShort } from "react-icons/bs"
-import { FcDeleteDatabase } from "react-icons/fc";
-import { FcCalendar } from "react-icons/fc";
-import { Modal, Table } from "antd";
-import dayjs from "dayjs";
-import { GoogleMap,Marker } from "@react-google-maps/api";
+import { FcDeleteDatabase } from "react-icons/fc"
+import { FcCalendar } from "react-icons/fc"
+import { Modal, Table } from "antd"
+import dayjs from "dayjs"
+import { GoogleMap,Marker } from "@react-google-maps/api"
 import miniVan from '../images/minivan.png'
 import maps from '../images/google-maps.png'
 import money from '../images/dollar.png'
@@ -161,13 +161,13 @@ const Students = () => {
 
   // Week days
   const daysOfWeek = [
+    "الأحد",
     "الاثنين",
     "الثلاثاء",
     "الأربعاء",
     "الخميس",
     "الجمعة",
-    "السبت",
-    "الأحد",
+    "السبت"
   ];
 
   // Car Types
@@ -201,7 +201,10 @@ const Students = () => {
             startTime: null,
             endTime: null,
           };
-        return dayData;
+          return {
+            ...dayData,
+            active: dayData.active, // Ensure active is true if times are set
+          };
       })
     );
     setIsModalVisible(true); // Show the modal
@@ -300,11 +303,44 @@ const Students = () => {
     setEditMonthlyFeeLoading(true);
 
     try {
-      const studentRef = doc(DB, "students", selectedStudent.id);
+      const studentRef = doc(DB, "students", selectedStudent.id)
+      const batch = writeBatch(DB)
 
-      await updateDoc(studentRef, {
-        monthly_sub: Number(newStudentMonthlyFee),
-      });
+      // Update the student's monthly subscription fee in the students collection
+      batch.update(studentRef, { monthly_sub: Number(newStudentMonthlyFee) });
+
+      // Check if the student is assigned to a driver
+      if (selectedStudent.driver_id) {
+        const driverRef = doc(DB, "drivers", selectedStudent.driver_id);
+        const driverDoc = await getDoc(driverRef);
+
+        if (driverDoc.exists()) {
+          const driverData = driverDoc.data();
+          const updatedLines = driverData.line.map((line) => {
+            // Check if this line matches the student's school
+            if (line.lineSchool === selectedStudent.student_school) {
+              const updatedStudents = line.students.map((student) => {
+                if (student.id === selectedStudent.id) {
+                  return { ...student, monthly_sub: Number(newStudentMonthlyFee) };
+                }
+                return student;
+              });
+              return { ...line, students: updatedStudents };
+            }
+            return line;
+          });
+
+          // Update the driver's document in the batch
+          batch.update(driverRef, { line: updatedLines });
+        } else {
+            console.error("Driver document not found.");
+            alert("حدث خطأ. السائق غير موجود.");
+            return;
+        }
+      }
+
+      // Commit the batch
+      await batch.commit();
 
       alert("تم اضافة المبلغ المالي بنجاح");
 
@@ -313,6 +349,7 @@ const Students = () => {
         ...prev,
         monthly_sub: newStudentMonthlyFee,
       }));
+
       setNewStudentMonthlyFee(0)
       setIsEditingMonthlyFee(false)
     } catch (error) {
@@ -335,32 +372,39 @@ const Students = () => {
     try {
       const batch = writeBatch(DB);
       const studentRef = doc(DB, 'students', studentId);
-      
       const driverId = selectedStudent.driver_id;
 
       batch.delete(studentRef);
 
-      // If the student has an assigned driver, update the driver's assigned_students array
+      // If the student has an assigned driver, update the driver's lines
       if (driverId) {
         const driverRef = doc(DB, "drivers", driverId);
 
-        // Fetch the driver's data to get the assigned_students array
-          const updatedAssignedStudents = driverInfo.assigned_students.filter(student => student.id !== studentId);
-          //Update the driver's assigned_students field
-          batch.update(driverRef, {
-            assigned_students: updatedAssignedStudents,
+        // Fetch the driver's document to update the correct line
+        const driverSnap = await getDoc(driverRef)
+        if (driverSnap.exists()) {
+          const driverData = driverSnap.data();
+          const updatedLine = (driverData.line || []).map((li) => {
+            return {
+              ...li,
+              students: li.students.filter((student) => student.id !== studentId),
+            };
           });
+
+          // Update the driver's lines field with the modified data
+          batch.update(driverRef, { line: updatedLine });
+        }
       }
 
       //Commit the batch
-      await batch.commit();
+      await batch.commit()
+      alert("تم الحذف بنجاح")
 
-      alert("تم الحذف بنجاح");
     } catch (error) {
-      console.error("خطأ أثناء الحذف:", error);
-      alert("حدث خطأ أثناء الحذف. حاول مرة أخرى.");
+      console.error("خطأ أثناء الحذف:", error.message)
+      alert("حدث خطأ أثناء الحذف. حاول مرة أخرى.")
     } finally {
-      setIsDeleting(false);
+      setIsDeleting(false)
       setSelectedStudent(null)
     }
   };
@@ -433,8 +477,7 @@ const Students = () => {
                         ) : (
                           <h5>Loading</h5>
                         )}                   
-                      </div>
-                      
+                      </div>                     
                     </Modal>
                   </div>
                   <div>
@@ -643,6 +686,7 @@ const Students = () => {
                     <h5>{selectedStudent.id}</h5>
                   </div>
                   <div>
+                    <h5 style={{marginLeft:'3px'}}>حذف الحساب</h5>
                     <button 
                       className="assinged-item-item-delete-button" 
                       onClick={() => handleDelete(selectedStudent.id)}

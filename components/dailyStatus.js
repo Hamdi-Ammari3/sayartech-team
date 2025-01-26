@@ -286,7 +286,9 @@ const DailyStatus = () => {
                         onMouseEnter={(e) => (e.target.style.textDecoration = "underline")} // Add underline on hover
                         onMouseLeave={(e) => (e.target.style.textDecoration = "none")}
                         onClick={() => openLineInfoModal(line)}
-                    >{line.lineName}</h5>
+                    >
+                        {line.lineName}
+                    </h5>
                     <Modal
                         title={selectedLine?.lineName}
                         open={isOpeningLineInfoModal}
@@ -316,7 +318,7 @@ const DailyStatus = () => {
             {allLines.length === 0 ? (
                 <div>Loading data...</div>
             ) : (
-                <div className='students-section-inner'>
+                <div>
                     <div className='students-section-inner-titles'>
                         <div className='students-section-inner-title'>
                             <button 

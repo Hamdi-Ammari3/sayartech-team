@@ -182,11 +182,6 @@
     font-weight: 400;
     margin: 0;
 }
-.side-box-email-count-div {
-    display: flex;
-    align-items: center;
-    margin: 0;
-}
 .active {
     background-color: #955BFE;
     color: #fff!important;
@@ -562,7 +557,6 @@
     border-bottom: 1px solid #f1f1f1;
     transition: box-shadow 0.2s ease;
     cursor: pointer;
-    
 }
 .single-item:hover{
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
@@ -570,7 +564,6 @@
 .single-item h5 {
     font-weight: 400;
     text-align: center;
-    
 }
 .single-item h5:nth-of-type(1){
     flex: 4;

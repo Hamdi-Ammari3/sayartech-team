@@ -226,7 +226,6 @@ const  Drivers = () => {
     }
   };
 
-
   // Handle open line-info Modal
   const openLineInfoModal = (line) => {
     setSelectedLine(line)
@@ -366,8 +365,7 @@ const  Drivers = () => {
     } finally {
         setIsDeletingLine(false);
     }
-  };
-
+  }
 
   //Delete driver document from DB
   const handleDelete = async () => {
@@ -379,13 +377,15 @@ const  Drivers = () => {
     setIsDeleting(true);
 
     try {
-      const { id, assigned_students } = selectedDriver;
+      const { id, line } = selectedDriver;
       const batch = writeBatch(DB);
 
-      // Update each student's driver_id field to null
-      (assigned_students || []).forEach((student) => {
-        const studentRef = doc(DB, "students", student.id);
-        batch.update(studentRef, { driver_id: null });
+      // Loop through each line and update the students' driver_id to null
+      (line || []).forEach((li) => {
+        (li.students || []).forEach((student) => {
+          const studentRef = doc(DB, "students", student.id);
+          batch.update(studentRef, { driver_id: null });
+        });
       });
 
       // Delete the driver document
@@ -510,7 +510,7 @@ const  Drivers = () => {
                             timeCaption="Start Time"
                             dateFormat="HH:mm"
                             className='private_car_request_form_date_day_input'
-                            placeholderText='وقت الدخول'
+                            placeholderText='وقت انطلاق الخط'
                           />
                           </div>
                           {addingNewLineLoading ? (
