@@ -1,4 +1,4 @@
-import React,{useState} from 'react'
+import React,{useState,useEffect} from 'react'
 import { useGlobalState } from '../globalState'
 import { writeBatch, collection, getDocs, doc } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
@@ -15,6 +15,21 @@ const DailyStatus = () => {
     const [isResetting, setIsResetting] = useState(false)
     const [isOpeningLineInfoModal,setIsOpeningLineInfoModal] = useState(false)
     const [selectedLine, setSelectedLine] = useState(null)
+    const [todayDate, setTodayDate] = useState("")
+    const [todayIndex, setTodayIndex] = useState(null);
+
+    // Find the today date
+    useEffect(() => {
+        const getTodayDate = () => {
+        const now = new Date();
+        const options = { weekday: "long", day: "2-digit", month: "long", year: "numeric" };
+        const formattedDate = now.toLocaleDateString("ar-IQ", options);
+        setTodayDate(formattedDate);
+        setTodayIndex(now.getDay()) // Get today's day index (0=Sunday, 6=Saturday)
+        };
+
+        getTodayDate();
+    }, []);
 
     // Filter Handlers
     const handleLineNameChange = (e) => setLineNameFilter(e.target.value);
@@ -24,38 +39,38 @@ const DailyStatus = () => {
     // Determine unified line status
     const getLineUnifiedStatus = (line) => {
         if (
-            line.first_trip_started === true && 
-            line.first_trip_finished === false &&
-            line.second_trip_started === false &&
-            line.second_trip_finished === false
+            line?.first_trip_started === true && 
+            line?.first_trip_finished === false &&
+            line?.second_trip_started === false &&
+            line?.second_trip_finished === false
 
         ) return 'first trip started';
         if (
-            line.first_trip_started === true && 
-            line.first_trip_finished === true &&
-            line.second_trip_started === false &&
-            line.second_trip_finished === false
+            line?.first_trip_started === true && 
+            line?.first_trip_finished === true &&
+            line?.second_trip_started === false &&
+            line?.second_trip_finished === false
 
         ) return 'first trip finished';
         if (
-            line.first_trip_started === true && 
-            line.first_trip_finished === true &&
-            line.second_trip_started === true &&
-            line.second_trip_finished === false
+            line?.first_trip_started === true && 
+            line?.first_trip_finished === true &&
+            line?.second_trip_started === true &&
+            line?.second_trip_finished === false
 
         ) return 'second trip started';
         if (
-            line.first_trip_started === true && 
-            line.first_trip_finished === true &&
-            line.second_trip_started === true &&
-            line.second_trip_finished === true
+            line?.first_trip_started === true && 
+            line?.first_trip_finished === true &&
+            line?.second_trip_started === true &&
+            line?.second_trip_finished === true
 
         ) return 'second trip finished';
         if (
-            line.first_trip_started === false && 
-            line.first_trip_finished === false &&
-            line.second_trip_started === false &&
-            line.second_trip_finished === false
+            line?.first_trip_started === false && 
+            line?.first_trip_finished === false &&
+            line?.second_trip_started === false &&
+            line?.second_trip_finished === false
 
         ) return 'second trip finished';
         return '--';
@@ -83,70 +98,46 @@ const DailyStatus = () => {
         if (status === 'first trip started' || status === 'second trip started') {
           return 'in-route';
         }
-      };
+    };
 
-    // Extract and sort all lines by startTime
-    const allLines = drivers.flatMap((driver) => 
-        driver.line.map((line) => ({
+    const uniqueStartTimes = [...new Set(
+        drivers.flatMap((driver) => 
+            driver.line?.flatMap((line) => 
+                line.lineTimeTable
+                    ?.filter(day => day.dayIndex === todayIndex && day.active) // Filter only today's active lines
+                    .map(day => {
+                        const date = day.startTime?.toDate?.();
+                        if (!date) return null;
+                        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    })
+            )
+        ).filter(Boolean)
+    )];
+
+    const filteredLines = drivers.flatMap((driver) => 
+        driver.line?.filter((line) => {
+            const todaySchedule = line.lineTimeTable?.find(day => day.dayIndex === todayIndex && day.active);
+            if (!todaySchedule) return false;
+    
+            // Convert today's start time into "HH:MM" format
+            const startTime = todaySchedule.startTime?.toDate?.();
+            const formattedStartTime = startTime 
+                ? `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`
+                : null;
+    
+            if (selectedStartTime && formattedStartTime !== selectedStartTime) return false; // Filter by selected start time
+            if (lineNameFilter && !line.lineName.toLowerCase().includes(lineNameFilter.toLowerCase())) return false;
+            if (driverNameFilter && !driver.driver_full_name.toLowerCase().includes(driverNameFilter.toLowerCase())) return false;
+    
+            return true;
+        }).map(line => ({
             ...line,
             driverName: driver.driver_full_name,
             driverFName: driver.driver_family_name,
             driverId: driver.id,
         }))
     );
-
-    const sortedLines = allLines
-    .filter((line) => line.line_school_startTime) // Ensure `line_school_startTime` exists
-    .sort((a, b) => {
-        const aDate = a.line_school_startTime?.toDate?.(); // Safely access `toDate()`
-        const bDate = b.line_school_startTime?.toDate?.();
-
-        if (!aDate || !bDate) return 0; // Skip comparison if dates are invalid
-
-        // Extract hours and minutes
-        const aTime = aDate.getHours() * 60 + aDate.getMinutes(); // Total minutes
-        const bTime = bDate.getHours() * 60 + bDate.getMinutes();
-
-        return aTime - bTime; // Sort by time
-    });
-
-    // Get unique start times (formatted as "HH:MM")
-    const uniqueStartTimes = [...new Set(
-        sortedLines.map((line) => {
-            const date = line.line_school_startTime?.toDate?.();
-            if (!date) return null; // Skip if date is invalid
-            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`; // Format as "HH:MM"
-        }).filter(Boolean) // Remove null values
-    )];
-    
-    const filteredLines = sortedLines.filter((line) => {
-        // Filter by start time
-        if (selectedStartTime) {
-            const date = line.line_school_startTime?.toDate?.();
-            if (!date) return false;
-            const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-            if (time !== selectedStartTime) return false;
-        }
-    
-        // Filter by line name
-        if (lineNameFilter && !line.lineName.toLowerCase().includes(lineNameFilter.toLowerCase())) {
-            return false;
-        }
-    
-        // Filter by driver name
-        if (driverNameFilter && !line.driverName.toLowerCase().includes(driverNameFilter.toLowerCase())) {
-            return false;
-        }
-    
-        // Filter by unified line state
-        const unifiedStatus = getLineUnifiedStatus(line);
-        if (lineState && unifiedStatus !== lineState) {
-            return false;
-        }
-    
-        return true;
-    });
-
+       
     // Handle open line-info Modal
     const openLineInfoModal = (line) => {
         setSelectedLine(line)
@@ -287,7 +278,7 @@ const DailyStatus = () => {
                         onMouseLeave={(e) => (e.target.style.textDecoration = "none")}
                         onClick={() => openLineInfoModal(line)}
                     >
-                        {line.lineName}
+                        {line?.lineName}
                     </h5>
                     <Modal
                         title={selectedLine?.lineName}
@@ -304,7 +295,7 @@ const DailyStatus = () => {
                             ))}
                         </div>
                     </Modal>
-                    <h5>{line.driverName} {line.driverFName}</h5>
+                    <h5>{line?.driverName} {line?.driverFName}</h5>
                     <h5 style={{flex:4}} className={getTripClassName(unifiedStatus)}>
                         {getTripArabicNameLine(unifiedStatus)}
                     </h5>
@@ -315,12 +306,16 @@ const DailyStatus = () => {
 
     return (
         <div className='white_card-section-container'>
-            {allLines.length === 0 ? (
+            {filteredLines.length === 0 ? (
                 <div>Loading data...</div>
             ) : (
                 <div>
-                    <div className='students-section-inner-titles'>
-                        <div className='students-section-inner-title'>
+                
+                    <div className='line-calender-box'>
+                        <div className='line-calender-box-dayDate'>
+                            <p style={{fontSize:'15px'}}>{todayDate}</p>
+                        </div>
+                        <div className='line-calender-box-dayTime'>
                             <button 
                                 className='reset-status-btn' 
                                 onClick={resetAll}

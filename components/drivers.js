@@ -6,6 +6,7 @@ import ClipLoader from "react-spinners/ClipLoader"
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css'
 import { Modal } from "antd"
+import { v4 as uuidv4 } from "uuid"
 import { useGlobalState } from '../globalState'
 import { BsArrowLeftShort } from "react-icons/bs"
 import { FcDeleteDatabase } from "react-icons/fc"
@@ -15,9 +16,22 @@ import { FaCaretDown } from "react-icons/fa6"
 import { FaPlus } from "react-icons/fa6";
 import { FiPlusSquare } from "react-icons/fi"
 import imageNotFound from '../images/NoImage.jpg'
+import { FiEdit2 } from "react-icons/fi"
+import { FcOk } from "react-icons/fc"
 
 const  Drivers = () => {
   const { drivers,schools } = useGlobalState()
+
+  // Define the default line time table
+  const defaultTimeTable = [
+    { day: "sunday", arabic_day: "الأحد", startTime: null, active: false },
+    { day: "monday", arabic_day: "الاثنين", startTime: null, active: false },
+    { day: "tuesday", arabic_day: "الثلاثاء", startTime: null, active: false },
+    { day: "wednesday", arabic_day: "الأربعاء", startTime: null, active: false },
+    { day: "thursday", arabic_day: "الخميس", startTime: null, active: false },
+    { day: "friday", arabic_day: "الجمعة", startTime: null, active: false },
+    { day: "saturday", arabic_day: "السبت", startTime: null, active: false }
+  ];
 
   const [driverNameFilter, setDriverNameFilter] = useState('')
   const [carTypeFilter, setCarTypeFilter] = useState('')
@@ -28,7 +42,10 @@ const  Drivers = () => {
   const [lineName,setLineName] = useState('')
   const [lineSchool,setLineSchool] = useState('')
   const [lineSchoolLocation, setLineSchoolLocation] = useState(null);
-  const [startTime, setStartTime] = useState(null)
+  const [lineTimeTable, setLineTimeTable] = useState(defaultTimeTable)
+  const [firstDayTimeSelected, setFirstDayTimeSelected] = useState(null)
+  const [editingDayTime, setEditingDayTime] = useState(null)
+  const [newDayTime, setNewDayTime] = useState(null)
   const [addingNewLineLoading,setAddingNewLineLoading] = useState(false)
   const [isOpeningLineInfoModal,setIsOpeningLineInfoModal] = useState(false)
   const [selectedLine, setSelectedLine] = useState(null)
@@ -126,7 +143,8 @@ const  Drivers = () => {
     setIsAddingNewLineModalOpen(false)
     setLineName("");
     setLineSchool("");
-    setStartTime(null);
+    setLineTimeTable(defaultTimeTable)
+    setFirstDayTimeSelected(null)
   }
 
   // Handle school selection and capture its location
@@ -146,83 +164,108 @@ const  Drivers = () => {
     }
   };
 
+  // Handle time selection for each day
+  const handleTimeChange = (day, time) => {
+    const formattedTime = time ? `${time.getHours()}:${time.getMinutes()}` : null;
+
+    setLineTimeTable((prev) =>
+      prev.map((item) =>
+        item.day === day
+          ? {
+              ...item,
+              startTime: formattedTime === "0:0" ? null : time, // If 00:00, reset time
+              active: formattedTime !== "0:0" // If 00:00, deactivate the day
+            }
+          : item
+      )
+    )
+
+    // Update the latest selected time (if not 00:00)
+    if (formattedTime !== "0:0") {
+      setFirstDayTimeSelected(time)
+    }
+  };
+
+  // Copy the selected day time to all other days (except Friday & Saturday)
+  const copyTimeToAllDays = () => {
+    if (!firstDayTimeSelected) return;
+  
+    setLineTimeTable((prev) =>
+      prev.map((day) =>
+        day.day !== "friday" && day.day !== "saturday" && firstDayTimeSelected !== null
+          ? { ...day, startTime: firstDayTimeSelected, active: true }
+          : day
+      )
+    );
+  };
+
   // Handle add new line
   const handleAddLine = async () => {
-    if (!lineName || !lineSchool || !startTime || !lineSchoolLocation) {
-        alert("الرجاء ملئ جميع الفراغات");
-        return;
+    if (!lineName || !lineSchool || !lineSchoolLocation) {
+      alert("الرجاء ملئ جميع الفراغات");
+      return;
     }
 
     setAddingNewLineLoading(true);
 
     try {
-        // Normalize the time to only hours and minutes
-        const normalizeTime = (timestamp) => {
-            const date = new Date(timestamp.toMillis());
-            return date.getHours() * 60 + date.getMinutes(); // Convert to minutes since midnight
-        };
+      const activeDays = lineTimeTable.filter((day) => day.active);
+      if (activeDays.length === 0) {
+        alert("يرجى تحديد وقت البدء ليوم واحد على الأقل.");
+        return;
+      }
 
-        // Normalize the new line's startTime
-        const newLineTimeNormalized = normalizeTime(Timestamp.fromDate(startTime));
+      // Generate unique ID for the new line
+      const newLineId = uuidv4()
 
-        const newLine = {
-            lineName,
-            lineSchool,
-            line_school_location: lineSchoolLocation,
-            line_school_startTime: Timestamp.fromDate(startTime),
-            students: [],
-            current_trip: 'first',
-            first_trip_started: false,
-            first_trip_finished: false,
-            second_trip_started: false,
-            second_trip_finished: false,
-            started_the_line: null,
-            arrived_to_school: null,
-        };
+      const newLine = {
+        id: newLineId,
+        lineName,
+        line_active:false,
+        line_index:null,
+        lineSchool,
+        line_school_location: lineSchoolLocation,
+        lineTimeTable: lineTimeTable.map((day,index) => ({
+          ...day,
+          dayIndex: index,
+          startTime: day.startTime ? Timestamp.fromDate(day.startTime) : null
+        })),
+        students: [],
+        current_trip: "first",
+        first_trip_started: false,
+        first_trip_finished: false,
+        second_trip_started: false,
+        second_trip_finished: false,
+        started_the_line: null,
+        arrived_to_school: null
+      };
 
-        // Fetch the current driver document
-        const driverRef = doc(DB, "drivers", selectedDriver.id);
-        const driverDoc = await getDoc(driverRef);
-        const driverData = driverDoc.data();
+      // Fetch driver document
+      const driverRef = doc(DB, "drivers", selectedDriver.id);
+      const driverDoc = await getDoc(driverRef);
+      const driverData = driverDoc.data();
 
-        // Check for duplicate startTime
-        const hasDuplicate = driverData.line.some((line) => {
-            const existingTimeNormalized = normalizeTime(line.line_school_startTime);
-            return existingTimeNormalized === newLineTimeNormalized;
-        });
+      // Add new line and update Firestore
+      const updatedLines = [...(driverData.line || []), newLine];
+      await updateDoc(driverRef, { line: updatedLines });
 
-        if (hasDuplicate) {
-            alert("يوجد خط بنفس توقيت البداية. الرجاء اختيار وقت مختلف.");
-            return;
-        }
+      // Update local state
+      setSelectedDriver((prevDriver) => ({
+        ...prevDriver,
+        line: updatedLines
+      }));
 
-        // Add the new line and sort by startTime
-        const updatedLines = [...(driverData.line || []), newLine].sort(
-            (a, b) =>
-                normalizeTime(a.line_school_startTime) - normalizeTime(b.line_school_startTime)
-        );
-
-        // Update the line_active field
-        updatedLines.forEach((line, index) => {
-            line.line_active = index === 0; // Only the first line (earliest startTime) is active
-        });
-
-        // Update Firestore
-        await updateDoc(driverRef, { line: updatedLines });
-
-        // Update local state
-        setSelectedDriver((prevDriver) => ({
-            ...prevDriver,
-            line: updatedLines,
-        }));
-
-        alert("تمت اضافة الخط بنجاح");
-        handleCloseModal();
+      alert("تمت إضافة الخط بنجاح");
+      handleCloseModal();
     } catch (error) {
-        console.error("Error adding new line:", error);
-        alert("حدث خطأ أثناء إضافة الخط. حاول مرة أخرى.");
+      console.error("Error adding new line:", error);
+      alert("حدث خطأ أثناء إضافة الخط. حاول مرة أخرى.");
     } finally {
-        setAddingNewLineLoading(false);
+      setAddingNewLineLoading(false)
+      setLineName("")
+      setLineSchool("")
+      setLineTimeTable(defaultTimeTable)
+      setFirstDayTimeSelected(null)
     }
   };
 
@@ -232,10 +275,80 @@ const  Drivers = () => {
     setIsOpeningLineInfoModal(true)
   }
 
+  // Function to format timestamps
+  const formatTime = (timestamp) => {
+    if (!timestamp) return "--"; // If no time is set
+    
+    const formattedTime = new Date(timestamp.seconds * 1000).toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  
+    return formattedTime === "00:00" ? "--" : formattedTime; // Show "-" if the time is "00:00"
+  }
+  
+  // Function to update start time in Firestore
+  const updateStartTime = async (dayIndex,driverId) => {
+    if (!newDayTime) return; // Prevent saving if no time selected
+
+    try {
+      const driverRef = doc(DB, "drivers", driverId); // Reference to the driver doc
+      const driverSnap = await getDoc(driverRef);
+
+      if (!driverSnap.exists()) {
+        alert("السائق غير موجود في قاعدة البيانات");
+        return;
+      }
+
+      const driverData = driverSnap.data();
+
+      // Find the correct line inside the driver's lines array
+      const updatedLines = driverData.line.map((line) => {
+        if (line.id === selectedLine.id) {
+          return {
+            ...line,
+            lineTimeTable: line.lineTimeTable.map((day, index) => {
+              if (index === dayIndex) {
+                return {
+                  ...day,
+                  startTime: Timestamp.fromDate(new Date(`2000-01-01T${newDayTime}`)),
+                  active: newDayTime !== "00:00", // Activate if not "00:00"
+                };
+              }
+              return day;
+            }),
+          };
+        }
+        return line;
+      });
+
+      // Update Firestore with the modified lines array
+      await updateDoc(driverRef, { line: updatedLines });
+
+      // Update state instantly in `selectedDriver`
+      setSelectedDriver((prevDriver) => ({
+        ...prevDriver,
+        line: updatedLines,
+      }))
+
+      setSelectedLine(updatedLines.find((line) => line.id === selectedLine.id));
+
+      alert("تم تحديث وقت الانطلاق بنجاح");
+
+    } catch (error) {
+      console.error("Error updating start time:", error.message);
+      alert("حدث خطأ أثناء تحديث وقت الانطلاق");
+    } finally{
+      handleCloseLineInfoModal()
+    }
+  };
+
   // Close line-info Modal
   const handleCloseLineInfoModal = () => {
     setSelectedLine(null)
     setIsOpeningLineInfoModal(false)
+    setEditingDayTime(null)
+    setNewDayTime(null)
   }
 
   // Open line students list
@@ -483,7 +596,6 @@ const  Drivers = () => {
                     >
                         <div className='adding_new_line_main'>
                           <input 
-                            style={{width:'250px'}} 
                             type='text' 
                             placeholder='اسم الخط'
                             value={lineName}
@@ -492,6 +604,7 @@ const  Drivers = () => {
                           <select 
                             onChange={handleSchoolChange}
                             value={lineSchool}
+                            style={{width:'280px'}}
                           >
                             <option value=''>المدرسة</option>
                             {schools.map(school => (
@@ -500,19 +613,32 @@ const  Drivers = () => {
                               </option>
                             ))}
                           </select>
-                          <div>
-                          <DatePicker
-                            selected={startTime}
-                            onChange={(time) => setStartTime(time)}
-                            showTimeSelect
-                            showTimeSelectOnly
-                            timeIntervals={15}
-                            timeCaption="Start Time"
-                            dateFormat="HH:mm"
-                            className='private_car_request_form_date_day_input'
-                            placeholderText='وقت انطلاق الخط'
-                          />
+                          <div className='line-time-table-container'>
+                            {lineTimeTable.map((day,index) => (
+                              <div key={index} className='line-time-table-container-box'>
+                                <p>{day.arabic_day}</p>
+                                <DatePicker                                  
+                                  selected={day.startTime}
+                                  onChange={(time) => handleTimeChange(day.day, time)}
+                                  showTimeSelect
+                                  showTimeSelectOnly
+                                  timeIntervals={15}
+                                  timeCaption="وقت البدء"
+                                  dateFormat="HH:mm"
+                                  className='private_car_request_form_date_day_input'
+                                  placeholderText="وقت البدء"
+                                />
+                              </div>                       
+                            ))}
                           </div>
+
+                          {/* Show the copy button only after the first time is selected */}
+                          {firstDayTimeSelected && (
+                            <button style={{marginBottom:'10px',backgroundColor:'#16B1FF'}} onClick={copyTimeToAllDays}>
+                              نسخ لجميع الأيام
+                            </button>
+                          )}
+
                           {addingNewLineLoading ? (
                             <div style={{ width:'120px',height:'35px',backgroundColor:'#955BFE',borderRadius:'7px',display:'flex',alignItems:'center',justifyContent:'center'}}>
                               <ClipLoader
@@ -566,10 +692,54 @@ const  Drivers = () => {
                                     <p style={{marginLeft:'5px'}}>:</p>
                                     <p>{selectedLine?.lineSchool}</p>
                                   </div>
-                                  <div>
-                                    <p style={{marginLeft:'5px'}}>وقت الدخول</p>
-                                    <p style={{marginLeft:'5px'}}>:</p>
-                                    <p>{new Date(selectedLine?.line_school_startTime.seconds * 1000).toLocaleString('en-GB', {hour: '2-digit', minute:'2-digit'})}</p>
+                                  {/* New Table for Start Times */}
+                                  <div className="line-time-table">
+                                    <table>
+                                      <thead>
+                                        <tr>   
+                                          <th style={{width:'70px'}}>تعديل</th>                                      
+                                          <th>وقت الانطلاق</th>
+                                          <th>اليوم</th>                                        
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {selectedLine?.lineTimeTable?.map((day, index) => (
+                                          <tr key={index}>
+
+                                            <td style={{width:'70px'}}>                                           
+                                              {editingDayTime === index ? (
+                                                <FcOk 
+                                                  size={20}
+                                                  style={{cursor:'pointer'}}
+                                                  onClick={() => updateStartTime(index,selectedDriver.id)}
+                                                />
+                                              ) : (
+                                                <FiEdit2
+                                                  style={{cursor:'pointer'}}
+                                                  onClick={() => setEditingDayTime(index)}
+                                                />
+                                              )}
+                                            </td>
+                                
+                                            <td>
+                                              {editingDayTime === index ? (
+                                                <input
+                                                  type="time"
+                                                  value={newDayTime || ""}
+                                                  onChange={(e) => setNewDayTime(e.target.value)}
+                                                  className="edit-time-input"
+                                                />
+                                              ) : (
+                                                formatTime(day.startTime)
+                                              )}
+                                            </td>
+
+                                            <td>{day.arabic_day}</td>
+
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
                                   </div>
                                 </div>
                               </Modal>

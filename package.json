@@ -32,7 +32,8 @@
     "react-select": "^5.8.1",
     "react-spinners": "^0.14.1",
     "tailwind-merge": "^2.5.2",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "uuid": "^11.0.5"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",

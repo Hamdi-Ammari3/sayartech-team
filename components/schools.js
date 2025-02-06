@@ -2,11 +2,14 @@ import React,{useState} from 'react'
 import { useGlobalState } from '../globalState'
 import { FaCaretUp } from "react-icons/fa6"
 import { FaCaretDown } from "react-icons/fa6"
+import { Modal } from "antd"
 
 const Schools = () => {
   const [schoolNameFilter,setSchoolNameFilter] = useState('')
   const [contractFilter, setContractFilter] = useState('');
-  const [studentCountSortDirection, setStudentCountSortDirection] = useState(null);
+  const [studentCountSortDirection, setStudentCountSortDirection] = useState(null)
+  const [selectedSchool,setSelectedSchool] = useState(null)
+  const [isOpeningSchoolInfoModal,setIsOpeningSchoolInfoModal] = useState(false)
 
   const { students, schools} = useGlobalState()
 
@@ -55,6 +58,18 @@ const Schools = () => {
     setStudentCountSortDirection('asc'); // Sort by lowest
   };
 
+  const openSchoolInfoModal = (school) => {
+    setSelectedSchool(school)
+    setIsOpeningSchoolInfoModal(true)
+  }
+
+  const closeSchoolInfoModal = () => {
+    setSelectedSchool(null)
+    setIsOpeningSchoolInfoModal(false)
+  }
+
+  console.log(selectedSchool)
+
   return (
     <div className='white_card-section-container'>
       <div className='students-section-inner'>
@@ -97,7 +112,25 @@ const Schools = () => {
         <div className='all-items-list'>
           {sortedSchools.map((school, index) => (
             <div key={index} className='single-item'>
-              <h5 style={{paddingRight:'15px'}}>{school.name}</h5>
+              <h5
+                style={{paddingRight:'15px'}}
+                onMouseEnter={(e) => (e.target.style.textDecoration = "underline")}
+                onMouseLeave={(e) => (e.target.style.textDecoration = "none")}
+                onClick={() => openSchoolInfoModal(school)}
+              >
+                {school.name}
+              </h5>
+              <Modal
+                title={selectedSchool?.name}
+                open={isOpeningSchoolInfoModal}
+                onCancel={closeSchoolInfoModal}
+                centered
+                footer={null}
+              >
+                <div className='school-info-modal'>
+                  <p>{selectedSchool?.id}</p>
+                </div>
+              </Modal>
               <h5
                 className={school.contract === 'تطبيق' ? 'app-only' : school.contract === 'تطبيق مع سواق' ? 'app-and-drivers' : ''}
               >{school.contract}</h5>
