@@ -1,7 +1,7 @@
 'use client'
 import React,{useState,useEffect} from 'react'
 import {useRouter} from 'next/navigation'
-import { LoadScript } from "@react-google-maps/api";
+import { LoadScript } from "@react-google-maps/api"
 import ClipLoader from "react-spinners/ClipLoader"
 import './style.css'
 import Navbar from '../components/navBar'

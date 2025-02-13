@@ -657,7 +657,7 @@ const  Drivers = () => {
                   </div>
 
                   <div className="assinged-item-box-main">
-                    {selectedDriver?.line.length ? (
+                    {selectedDriver?.line?.length ? (
                       <div style={{display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center'}}>
                         {selectedDriver?.line.map((line,index) => (
                           <div style={{width:'100%'}} key={index}>
@@ -756,7 +756,7 @@ const  Drivers = () => {
 
                             {/* Dropdown for students */}
                             <div className={`student-dropdown ${expandedLine === index ? "student-dropdown-open" : ""}`}>
-                              {line.students.length ? (
+                              {line?.students?.length ? (
                                 <>
                                   {line.students.map((student) => (
                                       <div key={student.id} className='student-dropdown-item'>

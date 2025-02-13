@@ -124,11 +124,15 @@ const DailyStatus = () => {
             const formattedStartTime = startTime 
                 ? `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`
                 : null;
+            
+            // Get the current line status
+            const unifiedStatus = getLineUnifiedStatus(line);
     
             if (selectedStartTime && formattedStartTime !== selectedStartTime) return false; // Filter by selected start time
             if (lineNameFilter && !line.lineName.toLowerCase().includes(lineNameFilter.toLowerCase())) return false;
             if (driverNameFilter && !driver.driver_full_name.toLowerCase().includes(driverNameFilter.toLowerCase())) return false;
-    
+            if (lineState && unifiedStatus !== lineState) return false;
+
             return true;
         }).map(line => ({
             ...line,
@@ -172,23 +176,15 @@ const DailyStatus = () => {
             }));
     
             // Loop through drivers
-            for (const driver of drivers) {
-                // Sort driver's lines by startTime
-                const sortedLines = driver.line.sort((a, b) => {
-                    const aTime = a.line_school_startTime?.toDate?.()?.getTime() || 0;
-                    const bTime = b.line_school_startTime?.toDate?.()?.getTime() || 0;
-                    return aTime - bTime;
-                });
-    
-                // Update lines
-                const updatedLines = sortedLines.map((line, index) => ({
+            for (const driver of drivers) { 
+                const updatedLines = driver?.line?.map((line) => ({
                     ...line,
                     first_trip_started: false,
                     first_trip_finished: false,
                     second_trip_started: false,
                     second_trip_finished: false,
                     current_trip: 'first',
-                    line_active: index === 0, // Only the first line is active
+                    line_active: false,
                     students: line.students.map((student) => ({
                         ...student,
                         picked_up: false,
@@ -200,7 +196,10 @@ const DailyStatus = () => {
                 }));
     
                 // Add driver line updates to the batch
-                batch.update(doc(DB, 'drivers', driver.id), { line: updatedLines });
+                batch.update(doc(DB, 'drivers', driver.id), { 
+                    line: updatedLines ,
+                    start_the_journey: false,
+                });
     
                 // Update students in Firestore
                 for (const line of updatedLines) {
@@ -306,43 +305,39 @@ const DailyStatus = () => {
 
     return (
         <div className='white_card-section-container'>
-            {filteredLines.length === 0 ? (
-                <div>Loading data...</div>
-            ) : (
-                <div>
+            <div>
                 
-                    <div className='line-calender-box'>
-                        <div className='line-calender-box-dayDate'>
-                            <p style={{fontSize:'15px'}}>{todayDate}</p>
-                        </div>
-                        <div className='line-calender-box-dayTime'>
-                            <button 
-                                className='reset-status-btn' 
-                                onClick={resetAll}
-                                disabled={isResetting}
-                            >
-                                <GrPowerReset />
-                            </button>
-                            <div className='line-start-times'> 
-                                {uniqueStartTimes.map((time,index) => (
-                                    <button
-                                        key={index}
-                                        className={`students-or-driver-btn ${selectedStartTime === time ? 'active' : ''}`}
-                                        onClick={() => setSelectedStartTime(time === selectedStartTime ? '' : time)}
-                                    >
-                                        {time}
-                                    </button>
-                                ))}
-                            </div>
+                <div className='line-calender-box'>
+                    <div className='line-calender-box-dayDate'>
+                        <p style={{fontSize:'15px'}}>{todayDate}</p>
+                    </div>
+                    <div className='line-calender-box-dayTime'>
+                        <button 
+                            className='reset-status-btn' 
+                            onClick={resetAll}
+                            disabled={isResetting}
+                        >
+                            <GrPowerReset />
+                        </button>
+                        <div className='line-start-times'> 
+                            {uniqueStartTimes.map((time,index) => (
+                                <button
+                                    key={index}
+                                    className={`students-or-driver-btn ${selectedStartTime === time ? 'active' : ''}`}
+                                    onClick={() => setSelectedStartTime(time === selectedStartTime ? '' : time)}
+                                >
+                                    {time}
+                                </button>
+                            ))}
                         </div>
                     </div>
-
-                    {renderTitles()}
-                    
-                    {renderRows()}
-
                 </div>
-            )}
+
+                {renderTitles()}
+                    
+                {renderRows()}
+
+            </div>
         </div>
     )
 }

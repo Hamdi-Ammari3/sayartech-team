@@ -79,7 +79,7 @@
 }
 .form-box > form > button{
     width: 250px;
-    padding: 10px 0;
+    height: 35px;
     border: none;
     border-radius: 10px;
     background-color: #955BFE;

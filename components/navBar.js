@@ -49,8 +49,7 @@ const Navbar = () => {
               <p>خروج</p>
               <CiLogout style={{color:'#000',fontSize:15}} />
             </button>
-          )}
-          
+          )}        
         </div>
     </div>
   )

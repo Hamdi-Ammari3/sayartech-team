@@ -24,7 +24,7 @@ const Login = () => {
       const q = query(
         collection(DB, "admins"),
         where("username", "==", username),
-        where("password", "==", password) // In production, use hashed passwords
+        where("password", "==", password)
       );
 
       const querySnapshot = await getDocs(q);
@@ -56,7 +56,7 @@ const Login = () => {
             <input placeholder='اسم المستخدم' value={username} onChange={(e) => setUsername(e.target.value)}/>
             <input placeholder='كلمة المرور' value={password} onChange={(e) => setPassword(e.target.value)}/>
             {loading ? (
-              <div style={{ width:'250px',padding:'12px 0',backgroundColor:'#955BFE',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <div style={{ width:'250px',height:'35px',backgroundColor:'#955BFE',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center'}}>
                 <ClipLoader
                   color={'#fff'}
                   loading={loading}
