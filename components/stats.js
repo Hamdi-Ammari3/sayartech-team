@@ -2,12 +2,14 @@ import React from 'react'
 import { useGlobalState } from '../globalState'
 import { PiStudentLight } from "react-icons/pi";
 import { PiVanLight } from "react-icons/pi"
-import { LuSchool2 } from "react-icons/lu";
+import { LuSchool2 } from "react-icons/lu"
+import { HiOutlineBuildingOffice2 } from "react-icons/hi2";
 import ClipLoader from "react-spinners/ClipLoader"
+
 import '../app/style.css'
 
 const Stats = () => {
-  const { students,schools,drivers,loading } = useGlobalState()
+  const { students,employees,schools,drivers,loading } = useGlobalState()
 
   return (
     <div className='main_section_stat'>
@@ -33,6 +35,28 @@ const Stats = () => {
               </div>
             ) : (
               <h5>{students.length}</h5>
+            )}
+          </div>
+        </div>
+
+        <div className='main_section_stat_item'>
+          <div className='main_section_stat_item_icon_div' style={{backgroundColor:'#7ABA37'}}>
+            <HiOutlineBuildingOffice2 className='main_section_stat_item_icon'/>
+          </div>
+          <div className='main_section_stat_info_item'>
+            <p>موظف</p>
+            {loading ? (
+              <div style={{ width:'50px',padding:'10px 0',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <ClipLoader
+                  color={'#955BFE'}
+                  loading={loading}
+                  size={10}
+                  aria-label="Loading Spinner"
+                  data-testid="loader"
+                />
+              </div>
+            ) : (
+              <h5>{employees.length}</h5>
             )}
           </div>
         </div>

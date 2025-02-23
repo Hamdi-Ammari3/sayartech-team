@@ -14,16 +14,16 @@ import miniVan from '../images/minivan.png'
 import maps from '../images/google-maps.png'
 import money from '../images/dollar.png'
 
-const Students = () => {
-  const { students,drivers,schools } = useGlobalState()
+const Employees = () => {
+  const { employees,drivers } = useGlobalState()
 
   const [nameFilter,setNameFilter] = useState('')
-  const [schoolFilter,setSchoolFilter] = useState('')
+  const [companyFilter,setCompanyFilter] = useState('')
   const [hasDriverFilter,setHasDriverFilter] = useState('')
-  const [selectedStudent,setSelectedStudent] = useState(null)
+  const [selectedEmployee,setSelectedEmployee] = useState(null)
   const [driverInfo, setDriverInfo] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
-  const [newStudentCarType,setNewStudentCarType] = useState('')
+  const [newEmployeeCarType,setNewEmployeeCarType] = useState('')
   const [loading,setLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isModalVisible, setIsModalVisible] = useState(false)
@@ -33,58 +33,58 @@ const Students = () => {
   const [selectedDays, setSelectedDays] = useState([])
   const [isModalMapVisible,setIsModalMapVisible] = useState(false)
   const [homeCoords, setHomeCoords] = useState(null)
-  const [schoolCoords, setSchoolCoords] = useState(null)
+  const [DestinationCoords, setDestinationCoords] = useState(null)
   const [distance, setDistance] = useState(null)
   const [isEditingMonthlyFee,setIsEditingMonthlyFee] = useState(false)
-  const [newStudentMonthlyFee,setNewStudentMonthlyFee] = useState(0)
+  const [newRiderMonthlyFee,setNewRiderMonthlyFee] = useState(0)
   const [editMonthlyFeeLoading,setEditMonthlyFeeLoading] = useState(false)
   
-  // Filtered students based on search term
-  const filteredStudents = students.filter((student) =>{
+  // Filtered employee based on search term
+  const filteredEmployees = employees.filter((employee) =>{
     //check name
-    const matchesName = nameFilter === '' || student.full_name.includes(nameFilter)
+    const matchesName = nameFilter === '' || employee.full_name.includes(nameFilter)
 
     //check school
-    const matchesSchool = schoolFilter === '' || student.destination === schoolFilter;
+    const matchesCompany = companyFilter === '' || employee.destination.includes(companyFilter)
 
     //check he has a driver or not
     const matchesDriver = 
     hasDriverFilter === '' || 
-    (hasDriverFilter === 'true' && student.driver_id) || 
-    (hasDriverFilter === 'false' && !student.driver_id);
+    (hasDriverFilter === 'true' && employee.driver_id) || 
+    (hasDriverFilter === 'false' && !employee.driver_id);
 
-    // Return only students matching all filters
-    return matchesName && matchesSchool && matchesDriver;
+    // Return only employee matching all filters
+    return matchesName && matchesCompany && matchesDriver;
   });
 
-  // Handle student name change
+  // Handle employee name change
   const handleNameFilterChange = (event) => {
     setNameFilter(event.target.value);
   };
 
-  // Handle student school change
-  const handleSchoolChange = (e) => {
-    setSchoolFilter(e.target.value);
+  // Handle employee school change
+  const handleCompanyChange = (e) => {
+    setCompanyFilter(e.target.value);
   };
 
-  // Handle student has driver change
+  // Handle employee has driver change
   const handleHasDriverChange = (e) => {
     setHasDriverFilter(e.target.value);
   };
 
-  // Select the student
-  const selectStudent = async (student) => {
-    setSelectedStudent(student);
+  // Select the employee
+  const selectEmployee = async (employee) => {
+    setSelectedEmployee(employee);
   };
 
   // Handle back action
   const goBack = () => {
-    setSelectedStudent(null);
+    setSelectedEmployee(null);
     setIsEditing(false)
     setIsEditingMonthlyFee(false)
   };
 
-  //Calculate student age
+  //Calculate employee age
   const calculateAge = (birthdate) => {
     const birthDate = new Date(birthdate.seconds * 1000); // Convert Firestore Timestamp to JS Date
     const today = new Date();
@@ -100,29 +100,29 @@ const Students = () => {
     return age;
   };
 
-  //Find and set driver info when a student is selected
+  //Find and set driver info when a employee is selected
   useEffect(() => {
-    if (selectedStudent) {
+    if (selectedEmployee) {
       const assignedDriver = drivers.find(
-        (driver) => String(driver.id) === String(selectedStudent.driver_id)
+        (driver) => String(driver.id) === String(selectedEmployee.driver_id)
       );
       setDriverInfo(assignedDriver || null)
       
     }
-  }, [selectedStudent, drivers]);
+  }, [selectedEmployee, drivers]);
 
   //Fetch home and school location 
   useEffect(() => {
-    if (selectedStudent) {
-      const homeLocation = selectedStudent?.home_location?.coords;
-      const schoolLocation = selectedStudent?.destination_location;
+    if (selectedEmployee) {
+      const homeLocation = selectedEmployee?.home_location?.coords;
+      const schoolLocation = selectedEmployee?.destination_location;
 
       if (homeLocation && schoolLocation) {
         setHomeCoords({
           lat: homeLocation.latitude,
           lng: homeLocation.longitude,
         });
-        setSchoolCoords({
+        setDestinationCoords({
           lat: schoolLocation.latitude,
           lng: schoolLocation.longitude,
         });
@@ -137,7 +137,7 @@ const Students = () => {
         setDistance(calculatedDistance);
       }
     }
-  }, [selectedStudent]);
+  }, [selectedEmployee]);
 
   // Haversine formula to calculate distance
   const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -196,7 +196,7 @@ const Students = () => {
     setEditingTimetable(
       daysOfWeek.map((day) => {
         const dayData =
-          selectedStudent?.timetable?.find((t) => t.day === day) || {
+          selectedEmployee?.timetable?.find((t) => t.day === day) || {
             day,
             active: false,
             startTime: null,
@@ -240,13 +240,13 @@ const Students = () => {
   const handleSaveTimetable = async () => {
     setIsSavingNewTimeTable(true)  
     try {
-      const studentRef = doc(DB, "riders", selectedStudent.id)
+      const employeeRef = doc(DB, "riders", selectedEmployee.id)
 
       // Save the new timetable to Firestore
-      await updateDoc(studentRef, { timetable: editingTimetable })
+      await updateDoc(employeeRef, { timetable: editingTimetable })
 
       // Update local state to reflect the new timetable
-      setSelectedStudent((prev) => ({
+      setSelectedEmployee((prev) => ({
         ...prev,
         timetable: editingTimetable,
       }));
@@ -255,48 +255,48 @@ const Students = () => {
       setIsModalVisible(false);
       setSelectedDays([]);
     } catch (error) {
-      console.log("Error updating timetable:", error);
+      console.error("Error updating timetable:", error);
       alert("حدث خطأ أثناء تحديث الجدول الدراسي. حاول مرة أخرى.");
     } finally {
       setIsSavingNewTimeTable(false)
     }
   };
 
-  //Edit Student car type 
-  const editStudentData = async() => {
-    if (!newStudentCarType) {
+  //Edit employee car type 
+  const editRiderData = async() => {
+    if (!newEmployeeCarType) {
       alert("الرجاء اختيار نوع السيارة");
       return;
     }
     setLoading(true)
     try {
-      const studentRef = doc(DB, "riders", selectedStudent.id);
-      await updateDoc(studentRef, {
-        car_type: newStudentCarType, // Update only the car type
+      const employeeRef = doc(DB, "riders", selectedEmployee.id);
+      await updateDoc(employeeRef, {
+        car_type: newEmployeeCarType, // Update only the car type
       });
 
       alert("تم تعديل نوع السيارة بنجاح!");
 
       // Update the local state
-      setSelectedStudent((prev) => ({
+      setSelectedEmployee((prev) => ({
         ...prev,
-        car_type: newStudentCarType,
+        car_type: newEmployeeCarType,
       }));
 
       // Clear the selection
-      setNewStudentCarType("")
+      setNewEmployeeCarType("")
       setIsEditing(false)
     } catch (error) {
-      console.log("Error updating student car type:", error);
+      console.log("Error updating car type:", error);
       alert("فشل في تعديل نوع السيارة. الرجاء المحاولة مرة أخرى.");
     } finally {
       setLoading(false)
     }
   }
 
-  //Edit student monthly fee
-  const editStudentMonthlyFee = async () => {
-    if (newStudentMonthlyFee < 0) {
+  //Edit employee monthly fee
+  const editRiderMonthlyFee = async () => {
+    if (newRiderMonthlyFee < 0) {
       alert("الرجاء ادخال مبلغ مالي صحيح");
       return;
     }
@@ -304,29 +304,28 @@ const Students = () => {
     setEditMonthlyFeeLoading(true);
 
     try {
-      const studentRef = doc(DB, "riders", selectedStudent.id)
+      const employeeRef = doc(DB, "riders", selectedEmployee.id)
       const batch = writeBatch(DB)
 
-      // Update the student's monthly subscription fee in the students collection
-      batch.update(studentRef, { monthly_sub: Number(newStudentMonthlyFee) });
+      // Update the employee's monthly subscription fee in the employees collection
+      batch.update(employeeRef, { monthly_sub: Number(newRiderMonthlyFee) });
 
-      // Check if the student is assigned to a driver
-      if (selectedStudent.driver_id) {
-        const driverRef = doc(DB, "drivers", selectedStudent.driver_id);
+      // Check if the employee is assigned to a driver
+      if (selectedEmployee.driver_id) {
+        const driverRef = doc(DB, "drivers", selectedEmployee.driver_id);
         const driverDoc = await getDoc(driverRef);
 
         if (driverDoc.exists()) {
           const driverData = driverDoc.data();
           const updatedLines = driverData.line.map((line) => {
-            // Check if this line matches the student's school
-            if (line.line_destination === selectedStudent.destination) {
-              const updatedStudents = line.riders.map((rider) => {
-                if (rider.id === selectedStudent.id) {
-                  return { ...rider, monthly_sub: Number(newStudentMonthlyFee) };
+            if (line.line_destination === selectedEmployee.destination) {
+              const updatedRiders = line.riders.map((rider) => {
+                if (rider.id === selectedEmployee.id) {
+                  return { ...rider, monthly_sub: Number(newRiderMonthlyFee) };
                 }
                 return rider;
               });
-              return { ...line, riders: updatedStudents };
+              return { ...line, riders: updatedRiders };
             }
             return line;
           });
@@ -334,7 +333,7 @@ const Students = () => {
           // Update the driver's document in the batch
           batch.update(driverRef, { line: updatedLines });
         } else {
-            console.log("Driver document not found.");
+            console.error("Driver document not found.");
             alert("حدث خطأ. السائق غير موجود.");
             return;
         }
@@ -346,23 +345,23 @@ const Students = () => {
       alert("تم اضافة المبلغ المالي بنجاح");
 
       // Update the local state
-      setSelectedStudent((prev) => ({
+      setSelectedEmployee((prev) => ({
         ...prev,
-        monthly_sub: newStudentMonthlyFee,
+        monthly_sub: newRiderMonthlyFee,
       }));
 
-      setNewStudentMonthlyFee(0)
+      setNewRiderMonthlyFee(0)
       setIsEditingMonthlyFee(false)
     } catch (error) {
-      console.log("Error updating the monthly subscription fee:", error);
+      console.error("Error updating the monthly subscription fee:", error);
       alert("حدث خطا. الرجاء المحاولة مرة ثانية");
     } finally {
       setEditMonthlyFeeLoading(false)
     }
   }
 
-  //Delete student document from DB
-  const handleDelete = async (studentId) => {
+  //Delete rider document from DB
+  const handleDelete = async (riderID) => {
     if (isDeleting) return;
 
     const confirmDelete = window.confirm("هل تريد بالتأكيد حذف هذا الحساب");
@@ -372,12 +371,12 @@ const Students = () => {
 
     try {
       const batch = writeBatch(DB);
-      const studentRef = doc(DB, 'riders', studentId);
-      const driverId = selectedStudent.driver_id;
+      const riderRef = doc(DB, 'riders', riderID);
+      const driverId = selectedEmployee.driver_id;
 
-      batch.delete(studentRef);
+      batch.delete(riderRef);
 
-      // If the student has an assigned driver, update the driver's lines
+      // If the rider has an assigned driver, update the driver's lines
       if (driverId) {
         const driverRef = doc(DB, "drivers", driverId);
 
@@ -388,7 +387,7 @@ const Students = () => {
           const updatedLine = (driverData.line || []).map((li) => {
             return {
               ...li,
-              riders: li.riders.filter((rider) => rider.id !== studentId),
+              riders: li.riders.filter((rider) => rider.id !== riderID),
             };
           });
 
@@ -402,26 +401,26 @@ const Students = () => {
       alert("تم الحذف بنجاح")
 
     } catch (error) {
-      console.log("خطأ أثناء الحذف:", error.message)
+      console.error("خطأ أثناء الحذف:", error.message)
       alert("حدث خطأ أثناء الحذف. حاول مرة أخرى.")
     } finally {
       setIsDeleting(false)
-      setSelectedStudent(null)
+      setSelectedEmployee(null)
     }
   };
 
   return (
     <div className='white_card-section-container'>
-      {selectedStudent ? (
+      {selectedEmployee ? (
         <>
           <div className="item-detailed-data-container">
 
             <div className="item-detailed-data-header">
               <div className='item-detailed-data-header-title'>
-                <h5>{selectedStudent.phone_number || '-'}</h5>
+                <h5>{selectedEmployee.phone_number || '-'}</h5>
                 <h5 style={{marginLeft:'5px',marginRight:'5px'}}>-</h5>
-                <h5 style={{marginRight:'4px'}}>{selectedStudent.family_name}</h5>
-                <h5>{selectedStudent.parent_full_name || selectedStudent.full_name}</h5>
+                <h5 style={{marginRight:'4px'}}>{selectedEmployee.family_name}</h5>
+                <h5>{selectedEmployee.parent_full_name || selectedEmployee.full_name}</h5>
               </div>
               <button className="info-details-back-button" onClick={goBack}>
                 <BsArrowLeftShort size={24}/>
@@ -432,14 +431,14 @@ const Students = () => {
 
               <div className="student-detailed-data-main-firstBox">
                   <div>
-                    <h5 style={{marginLeft:'4px'}}>{selectedStudent.full_name}</h5>
+                    <h5 style={{marginLeft:'4px'}}>{selectedEmployee.full_name}</h5>
                     <h5 style={{marginLeft:'4px'}}>-</h5>
-                    <h5 style={{marginLeft:'4px'}}>{selectedStudent.birth_date ? calculateAge(selectedStudent.birth_date) : '-'}</h5>
+                    <h5 style={{marginLeft:'4px'}}>{selectedEmployee.birth_date ? calculateAge(selectedEmployee.birth_date) : '-'}</h5>
                     <h5 style={{marginLeft:'10px'}}>سنة</h5>
                     <button className="student-edit-car-type-btn" onClick={handleOpenMapModal}>
                       <Image src={maps} width={16} height={16} alt='maps'/>
                     </button>
-                    {/* Student Map Modal */}
+                    {/* Rider Map Modal */}
                     <Modal
                       title='موقع الطالب'
                       open={isModalMapVisible}
@@ -452,7 +451,7 @@ const Students = () => {
                       centered
                     >
                       <div style={{ height: '500px', width: '100%',margin:'0px' }}>
-                        {homeCoords && schoolCoords ? (
+                        {homeCoords && DestinationCoords ? (
                           <GoogleMap
                           mapContainerStyle={containerStyle}
                           center={homeCoords}
@@ -467,7 +466,7 @@ const Students = () => {
                             }}
                           />
                           <Marker 
-                            position={schoolCoords}
+                            position={DestinationCoords}
                             label={{
                               text:'المدرسة',
                               color:'#000',
@@ -481,8 +480,20 @@ const Students = () => {
                       </div>                     
                     </Modal>
                   </div>
+                  
                   <div>
-                    <h5 style={{marginLeft:'5px'}}>{selectedStudent.destination || '-'}</h5>
+                    <h5 style={{marginLeft:'4px'}}>{selectedEmployee.home_address || '-'}</h5>
+                    <h5 style={{marginLeft:'4px'}}>-</h5>
+                   <h5>{selectedEmployee.street || '-'}</h5>
+                  </div>
+                  <div>
+                    <h5 style={{marginLeft:'4px'}}>{selectedEmployee.city || '-'}</h5>
+                    <h5 style={{marginLeft:'4px'}}>-</h5>
+                    <h5>{selectedEmployee.state || '-'}</h5>
+                  </div>
+
+                  <div>
+                    <h5 style={{marginLeft:'5px'}}>{selectedEmployee.destination || '-'}</h5>
                     <button className="student-edit-car-type-btn" onClick={handleOpenModal}>
                       <FcCalendar size={24}/>
                     </button>
@@ -600,23 +611,20 @@ const Students = () => {
                       />
                     </Modal>
                   </div>
+
                   <div>
-                    <h5 style={{marginLeft:'4px'}}>{selectedStudent.home_address || '-'}</h5>
+                    <h5 style={{marginLeft:'4px'}}>{selectedEmployee.company_address || '-'}</h5>
                     <h5 style={{marginLeft:'4px'}}>-</h5>
-                   <h5>{selectedStudent.street || '-'}</h5>
+                   <h5>{selectedEmployee.company_nearest_point || '-'}</h5>
                   </div>
+
                   <div>
-                    <h5 style={{marginLeft:'4px'}}>{selectedStudent.city || '-'}</h5>
-                    <h5 style={{marginLeft:'4px'}}>-</h5>
-                    <h5>{selectedStudent.state || '-'}</h5>
-                  </div>
-                  <div>
-                    <h5 style={{marginLeft:'10px'}}>{selectedStudent.car_type || '-'}</h5>
+                    <h5 style={{marginLeft:'10px'}}>{selectedEmployee.car_type || '-'}</h5>
                     {isEditing ? (
                       <div className='student-edit-car-type'>
                         <select
-                          value={newStudentCarType}
-                          onChange={(e) => setNewStudentCarType(e.target.value)}
+                          value={newEmployeeCarType}
+                          onChange={(e) => setNewEmployeeCarType(e.target.value)}
                         >
                           <option value=''>--</option>
                           {carTypes.map(car => (
@@ -637,7 +645,7 @@ const Students = () => {
                               />
                             </div>
                           ) : (
-                            <button style={{width:'50px',marginLeft:'5px',padding:'7px'}} onClick={() => editStudentData()}>تعديل</button>
+                            <button style={{width:'50px',marginLeft:'5px',padding:'7px'}} onClick={() => editRiderData()}>تعديل</button>
                           )}
                         </>
                         <button onClick={() => setIsEditing(false)} style={{width:'50px',padding:'7px',border:'1px solid #955BFE',color:'#955BFE',backgroundColor:'#fff'}} className='cancel-time-table-button'>الغاء</button>
@@ -651,14 +659,14 @@ const Students = () => {
                   </div>
                   <div>
                     <h5 style={{marginLeft:'5px'}}>
-                      {selectedStudent.monthly_sub ? Number(selectedStudent.monthly_sub).toLocaleString('en-US') : '0'}
+                      {selectedEmployee.monthly_sub ? Number(selectedEmployee.monthly_sub).toLocaleString('en-US') : '0'}
                     </h5>
                     <h5 style={{marginLeft:'10px'}}>دينار</h5>
                     {isEditingMonthlyFee ? (
                       <div className='student-edit-car-type'>
                         <input 
-                          value={newStudentMonthlyFee}
-                          onChange={(e) => setNewStudentMonthlyFee(e.target.value)}
+                          value={newRiderMonthlyFee}
+                          onChange={(e) => setNewRiderMonthlyFee(e.target.value)}
                           type='number'/>
                         <>
                           {editMonthlyFeeLoading ? (
@@ -672,7 +680,7 @@ const Students = () => {
                               />
                             </div>
                           ) : (
-                            <button style={{width:'50px',marginLeft:'5px',padding:'7px'}} onClick={() => editStudentMonthlyFee()}>تعديل</button>
+                            <button style={{width:'50px',marginLeft:'5px',padding:'7px'}} onClick={() => editRiderMonthlyFee()}>تعديل</button>
                           )}
                         </>
                         <button onClick={() => setIsEditingMonthlyFee(false)} style={{width:'50px',padding:'7px',border:'1px solid #955BFE',color:'#955BFE',backgroundColor:'#fff'}} className='cancel-time-table-button'>الغاء</button>
@@ -684,13 +692,13 @@ const Students = () => {
                     )}
                   </div>
                   <div>
-                    <h5>{selectedStudent.id}</h5>
+                    <h5>{selectedEmployee.id}</h5>
                   </div>
                   <div>
                     <h5 style={{marginLeft:'3px'}}>حذف الحساب</h5>
                     <button 
                       className="assinged-item-item-delete-button" 
-                      onClick={() => handleDelete(selectedStudent.id)}
+                      onClick={() => handleDelete(selectedEmployee.id)}
                       disabled={isDeleting}
                     >
                       <FcDeleteDatabase size={24} />
@@ -745,12 +753,13 @@ const Students = () => {
               />
             </div>
             <div className='students-section-inner-title'>
-              <select onChange={handleSchoolChange} value={schoolFilter}>
-                <option value=''>المدرسة</option>
-                {schools.map(school => (
-                  <option key={school.id} value={school.name}>{school.name}</option>
-                ))}
-              </select>
+               <input 
+                onChange={handleCompanyChange} 
+                value={companyFilter}
+                placeholder='مقر العمل' 
+                type='text' 
+                className='students-section-inner-title_search_input' 
+              />
             </div>
             <div className='students-section-inner-title'>
               <select onChange={handleHasDriverChange} value={hasDriverFilter}>
@@ -761,11 +770,11 @@ const Students = () => {
             </div>
           </div>
           <div className='all-items-list'>
-            {filteredStudents.map((student, index) => (
-              <div key={index} onClick={() => selectStudent(student)} className='single-item' >
-                <h5>{student.full_name}</h5>
-                <h5>{student.destination}</h5>
-                <h5 className={student.driver_id ? 'student-has-driver' : 'student-without-driver'}>{student.driver_id ? 'نعم' : 'لا'}</h5>
+            {filteredEmployees.map((employee, index) => (
+              <div key={index} onClick={() => selectEmployee(employee)} className='single-item' >
+                <h5>{employee.full_name}</h5>
+                <h5>{employee.destination}</h5>
+                <h5 className={employee.driver_id ? 'student-has-driver' : 'student-without-driver'}>{employee.driver_id ? 'نعم' : 'لا'}</h5>
               </div>
             ))}
           </div>
@@ -775,4 +784,4 @@ const Students = () => {
   );
 }
 
-export default Students
+export default Employees

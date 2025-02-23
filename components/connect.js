@@ -7,13 +7,14 @@ import { GoogleMap,Marker,InfoWindow } from "@react-google-maps/api"
 import { IoIosCloseCircleOutline } from "react-icons/io"
 
 const Connect = () => {
-    const { students,drivers } = useGlobalState()
+    const { riders,drivers } = useGlobalState()
+    
     const [driverName, setDriverName] = useState("")
     const [selectedDriver, setSelectedDriver] = useState(null)
     const [lineName, setLineName] = useState("")
-    const [eligibleStudents, setEligibleStudents] = useState([])
-    const [studentCount, setStudentCount] = useState(0)
-    const [selectedStudent, setSelectedStudent] = useState(null)
+    const [eligibleRiders,setEligibleRiders] = useState([])
+    const [riderCount,setRiderCount] = useState(0)
+    const [selectedRider,setSelectedRider] = useState(null)
     const [loading,setLoading] = useState(false)
     const [mapLocked, setMapLocked] = useState(false)
 
@@ -27,15 +28,15 @@ const Connect = () => {
         setSelectedDriver(driver)
         setDriverName('')
         setLineName("")
-        setEligibleStudents([])
-        setStudentCount(0)
-        setSelectedStudent(null)
+        setEligibleRiders([])
+        setRiderCount(0)
+        setSelectedRider(null)
     };
 
     // Handle removing the selected driver
     const handleRemoveDriver = () => {
         setSelectedDriver(null)
-        setSelectedStudent(null)
+        setSelectedRider(null)
     };
 
     // Haversine formula to calculate distance between two coordinates
@@ -54,7 +55,7 @@ const Connect = () => {
     return R * c; // Distance in km
     };
 
-    // Handle the search logic for eligible students
+    // Handle the search logic for eligible riders
     const handleSearch = () => {
         if (!selectedDriver || !lineName) {
             alert("الرجاء ادخال المعلومات اللازمة للبحث");
@@ -68,31 +69,31 @@ const Connect = () => {
             return;
         }
   
-        const eligibleStudents = students.filter(
-        (student) =>
-            !student.driver_id && // Not assigned to a driver
-            student.student_school === selectedLine.lineSchool // Same school as the line
+        const eligibleRiders = riders.filter(
+        (rider) =>
+            !rider.driver_id && // Not assigned to a driver
+            rider.destination === selectedLine.line_destination // Same destination as the line
         )
-        .map((student) => ({
-            ...student,
+        .map((rider) => ({
+            ...rider,
             distance: calculateDistance(
               selectedDriver.driver_home_location.coords.latitude,
               selectedDriver.driver_home_location.coords.longitude,
-              student.student_home_location.coords.latitude,
-              student.student_home_location.coords.longitude
+              rider.home_location.coords.latitude,
+              rider.home_location.coords.longitude
             ),
           }))
           .sort((a, b) => a.distance - b.distance) // Sort by distance
-          //.slice(0, 10); // Take the nearest 10 students
+          //.slice(0, 10); // Take the nearest 10 riders
 
-        setEligibleStudents(eligibleStudents)
-        setStudentCount(eligibleStudents.length)
+        setEligibleRiders(eligibleRiders)
+        setRiderCount(eligibleRiders.length)
         setMapLocked(true)
     };
 
-    // Assign student to driver
-    const handleConnectStudent = async () => {
-        if (!selectedStudent || !selectedDriver || !lineName) return;
+    // Assign rider to driver
+    const handleConnectRider = async () => {
+        if (!selectedRider || !selectedDriver || !lineName) return;
 
         const selectedLine = selectedDriver.line.find(
             (li) => li.lineName === lineName
@@ -107,45 +108,45 @@ const Connect = () => {
 
         try {
             const driverRef = doc(DB, "drivers", selectedDriver.id);
-            const studentRef = doc(DB, "students", selectedStudent.id);
+            const riderRef = doc(DB, "riders", selectedRider.id);
 
             // Extract latitude and longitude from the nested home_location object
-            const homeCoords = selectedStudent.student_home_location?.coords || {};
+            const homeCoords = selectedRider.home_location?.coords || {};
 
-            const studentInfo = {
-                birth_date:selectedStudent.student_birth_date,
+            const riderInfo = {
+                birth_date:selectedRider.birth_date,
                 checked_in_front_of_school: false,
                 dropped_off: false,
-                family_name:selectedStudent.student_family_name,
-                home_address: selectedStudent.student_home_address || '',
+                family_name:selectedRider.family_name,
+                home_address: selectedRider.home_address || '',
                 home_location: {
                 latitude: homeCoords.latitude || null,
                 longitude: homeCoords.longitude || null,
                 },
-                id:selectedStudent.id,
-                name: selectedStudent.student_full_name || 'Unknown',
-                notification_token:selectedStudent.student_user_notification_token,
-                phone_number:selectedStudent.student_phone_number,
+                id:selectedRider.id,
+                name: selectedRider.full_name || 'Unknown',
+                notification_token:selectedRider.user_notification_token,
+                phone_number:selectedRider.phone_number,
                 picked_from_school: false,
                 picked_up: false,
-                school_location: {
-                latitude: selectedStudent.student_school_location.latitude || null,
-                longitude: selectedStudent.student_school_location.longitude || null,
+                destination:selectedRider.destination,
+                destination_location: {
+                latitude: selectedRider.destination_location.latitude || null,
+                longitude: selectedRider.destination_location.longitude || null,
                 },
-                school_name:selectedStudent.student_school,
-                student_state:selectedStudent.student_state,
-                student_city:selectedStudent.student_city,
-                student_street:selectedStudent.student_street,
+                state:selectedRider.state,
+                city:selectedRider.city,
+                street:selectedRider.street,
                 tomorrow_trip_canceled: false,
-                monthly_sub:selectedStudent.monthly_sub
+                monthly_sub:selectedRider.monthly_sub
             };
 
             const batch = writeBatch(DB);
 
-            // Update driver's line students
+            // Update driver's line riders
             const updatedLine = {
                 ...selectedLine,
-                students: [...selectedLine.students, studentInfo],
+                riders: [...selectedLine.riders, riderInfo],
             };
 
             batch.update(driverRef, {
@@ -154,8 +155,8 @@ const Connect = () => {
                 ),
             });
 
-            // Update student's driver_id
-            batch.update(studentRef, {
+            // Update rider's driver_id
+            batch.update(riderRef, {
                 driver_id: selectedDriver.id,
             });
 
@@ -169,22 +170,22 @@ const Connect = () => {
                 ),
             }));
 
-            setEligibleStudents((prev) => {
-                const updatedEligibleStudents = prev.filter(
-                    (student) => student.id !== selectedStudent.id
+            setEligibleRiders((prev) => {
+                const updatedEligibleRiders = prev.filter(
+                    (rider) => rider.id !== selectedRider.id
                 );
-                setStudentCount(updatedEligibleStudents.length); // Update the counter
-                return updatedEligibleStudents; // Return the filtered students
+                setRiderCount(updatedEligibleRiders.length)
+                return updatedEligibleRiders
             });
 
             alert("تم ربط الطالب بالسائق بنجاح!");
 
         } catch (error) {
-            console.error("Error connecting student to driver:", error.message);
+            console.log("Error connecting rider to driver:", error);
             alert("حدث خطأ أثناء التوصيل. يرجى المحاولة مرة أخرى.");
         } finally {
             setLoading(false)
-            setSelectedStudent(null);   
+            setSelectedRider(null);   
         }
     };
   
@@ -249,7 +250,7 @@ const Connect = () => {
                 {/* Counter Display */}
                 {selectedDriver && lineName && (
                     <div className="selected-tag" style={{marginRight:'10px'}}>
-                        <h5>عدد الطلاب: {studentCount}</h5>
+                        <h5>عدد الطلاب: {riderCount}</h5>
                     </div>
                 )}
                 
@@ -279,33 +280,33 @@ const Connect = () => {
                             />
                         )}
 
-                        {/* Student Markers */}
-                        {eligibleStudents.map((student) => (
+                        {/* Riders Marker */}
+                        {eligibleRiders.map((rider) => (
                             <Marker
-                                key={student.id}
-                                position={{lat:student.student_home_location.coords.latitude,lng:student.student_home_location.coords.longitude}}
-                                label={student.name}
-                                onClick={() => setSelectedStudent(student)}
+                                key={rider.id}
+                                position={{lat:rider.home_location.coords.latitude,lng:rider.home_location.coords.longitude}}
+                                label={rider.name}
+                                onClick={() => setSelectedRider(rider)}
                             >                           
                             </Marker>
                         ))}
 
-                        {/* InfoWindow for Selected Student */}
-                        {selectedStudent && (
+                        {/* InfoWindow for Selected Rider */}
+                        {selectedRider && (
                             <InfoWindow
                                 position={{
-                                    lat: selectedStudent.student_home_location.coords.latitude,
-                                    lng: selectedStudent.student_home_location.coords.longitude,
+                                    lat: selectedRider.home_location.coords.latitude,
+                                    lng: selectedRider.home_location.coords.longitude,
                                 }}
-                                onCloseClick={() => setSelectedStudent(null)}
+                                onCloseClick={() => setSelectedRider(null)}
                                 options={{
                                     pixelOffset: new window.google.maps.Size(0, -30), // Adjust the Y-offset to move it above the marker
                                 }}
                             >
                                 <div className='popup-marker-info' style={{font:'none'}}>
                                     <p style={{marginBottom: '10px'}}>
-                                        {selectedStudent.student_full_name} {" "}
-                                        {selectedStudent.student_family_name}
+                                        {selectedRider.full_name} {" "}
+                                        {selectedRider.family_name}
                                     </p>
                                     {loading ? (
                                         <div style={{ width:'80px',height:'30px',backgroundColor:'#955BFE',borderRadius:'7px',display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -318,7 +319,7 @@ const Connect = () => {
                                             />
                                         </div>
                                     ) : (
-                                        <button onClick={() => handleConnectStudent(selectedStudent.id)}>ربط</button>  
+                                        <button onClick={() => handleConnectRider(selectedRider.id)}>ربط</button>  
                                     )}
                                                                   
                                 </div>

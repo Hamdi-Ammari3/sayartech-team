@@ -9,6 +9,7 @@ import Main from '../components/main'
 import DailyStatus from '../components/dailyStatus'
 import Connect from '../components/connect';
 import Students from '../components/students'
+import Employees from '../components/employees'
 import Drivers from '../components/drivers'
 import Schools from '../components/schools'
 import Email from '../components/email'
@@ -60,6 +61,8 @@ const Dashboard = () => {
         return <Connect/>
       case 'الطلاب' :
         return <Students/>
+      case 'الموظفين':
+        return <Employees/>
       case 'السواق':
         return <Drivers/>
       case 'المدارس' :
@@ -107,6 +110,13 @@ const Dashboard = () => {
               className={activeSection === 'الطلاب' ? 'active':''}
             >
               <h4 >الطلاب</h4>
+            </div>
+
+            <div
+              onClick={() => handleSectionSelect('الموظفين')}
+              className={activeSection === 'الموظفين' ? 'active':''}
+            >
+              <h4 >الموظفين</h4>
             </div>
 
             <div

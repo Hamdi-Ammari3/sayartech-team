@@ -236,8 +236,8 @@
     display: flex;
 }
 .main_section_stat_item_icon_div{
-    height: 60px;
-    width: 60px;
+    height: 50px;
+    width: 50px;
     border-radius: 10px;
     display: flex;
     flex-direction: column;
@@ -246,13 +246,14 @@
     box-shadow: -10px 13px 5px -14px rgba(0,0,0,0.5);
 }
 .main_section_stat_item_icon{
-    font-size: 42px;
+    font-size: 36px;
     font-weight: 400;
     color: #fff;
 }
 .main_section_stat_info_item{
-    height: 60px;
-    width: 60px;
+    height: 50px;
+    width: 50px;
+    margin-left: 5px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -260,7 +261,7 @@
 }
 .main_section_stat_info_item > h5{
     margin: 0;
-    font-size: 16px;
+    font-size: 15px;
 }
 .main_section_stat_info_item > p{
     margin: 0;
@@ -794,7 +795,8 @@
   .student-edit-car-type > select:focus,
   .student-edit-car-type > input:focus,
   .adding_new_line_main > input,
-  .adding_new_line_main > select
+  .adding_new_line_main > select,
+  .latitude_longitude_container > input
   {
     outline: none;
   }
@@ -919,7 +921,7 @@
     align-items: center;
     justify-content: center;
   }
-  .adding_new_line_main > select,.adding_new_line_main > input{
+  .adding_new_line_main > select,.adding_new_line_main > input,.latitude_longitude_container > input{
     width: 280px;
     height: 35px;
     margin-bottom: 15px;
@@ -928,6 +930,15 @@
     font-weight: 700;
     border: 1px solid #f1f1f1;
     border-radius: 7px;
+  }
+  .latitude_longitude_container > input{
+    width: 130px;
+  }
+  .latitude_longitude_container{
+    width: 280px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
   .line-time-table-container{
     height: 100px;
@@ -943,12 +954,10 @@
   .line-time-table {
     margin-top: 15px;
   }
-  
   .line-time-table table {
     width: 100%;
     border-collapse: collapse;
   }
-  
   .line-time-table th, .line-time-table td {
     width: 150px;
     border: 1px solid #ddd;
@@ -956,7 +965,6 @@
     margin-inline: 1px;
     text-align: center;
   }
-  
   .line-time-table th {
     background-color: #f4f4f4;
   }
@@ -999,6 +1007,30 @@
     background-color: #955BFE;
     color: #fff;
     cursor: pointer;
+  }
+  .new_line_riderType_btn_container{
+    width: 280px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: space-around;
+    align-items: center;
+  }
+  .new_line_riderType_btn{
+    width: 90px;
+    height: 30px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    border: none;
+    border-radius: 7px;
+    background-color: #F4F5FA;
+    color: #000;
+    cursor: pointer;
+  }
+  .new_line_riderType_btn_active{
+    background-color: #955BFE;
+    color: #fff;
   }
   .assinged-item-box-map{
     width: 100%;

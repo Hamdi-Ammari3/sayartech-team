@@ -5,17 +5,17 @@ import { FaCaretDown } from "react-icons/fa6"
 import { Modal } from "antd"
 
 const Schools = () => {
+  const { students, schools} = useGlobalState()
+
   const [schoolNameFilter,setSchoolNameFilter] = useState('')
   const [contractFilter, setContractFilter] = useState('');
   const [studentCountSortDirection, setStudentCountSortDirection] = useState(null)
   const [selectedSchool,setSelectedSchool] = useState(null)
   const [isOpeningSchoolInfoModal,setIsOpeningSchoolInfoModal] = useState(false)
 
-  const { students, schools} = useGlobalState()
-
   // Group students by school
   const studentCounts = students.reduce((acc, student) => {
-    acc[student.student_school] = (acc[student.student_school] || 0) + 1;
+    acc[student.destination] = (acc[student.destination] || 0) + 1;
     return acc;
   }, {});
 
@@ -67,8 +67,6 @@ const Schools = () => {
     setSelectedSchool(null)
     setIsOpeningSchoolInfoModal(false)
   }
-
-  console.log(selectedSchool)
 
   return (
     <div className='white_card-section-container'>

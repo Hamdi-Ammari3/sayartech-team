@@ -39,9 +39,14 @@ const  Drivers = () => {
   const [selectedDriver,setSelectedDriver] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isAddingNewLineModalOpen,setIsAddingNewLineModalOpen] = useState(false)
+  const [riderType,setRiderType] = useState('student')
   const [lineName,setLineName] = useState('')
   const [lineSchool,setLineSchool] = useState('')
-  const [lineSchoolLocation, setLineSchoolLocation] = useState(null);
+  const [companyName,setCompanyName] = useState('')
+  const [coordinates, setCoordinates] = useState("")
+  const [latitude, setLatitude] = useState(null)
+  const [longitude, setLongitude] = useState(null)
+  const [lineSchoolLocation, setLineSchoolLocation] = useState(null)
   const [lineTimeTable, setLineTimeTable] = useState(defaultTimeTable)
   const [firstDayTimeSelected, setFirstDayTimeSelected] = useState(null)
   const [editingDayTime, setEditingDayTime] = useState(null)
@@ -50,7 +55,7 @@ const  Drivers = () => {
   const [isOpeningLineInfoModal,setIsOpeningLineInfoModal] = useState(false)
   const [selectedLine, setSelectedLine] = useState(null)
   const [expandedLine, setExpandedLine] = useState(null)
-  const [isDeletingStudentFromLine,setIsDeletingStudentFromLine] = useState(false)
+  const [isDeletingRiderFromLine,setIsDeletingRiderFromLine] = useState(false)
   const [isDeletingLine,setIsDeletingLine] = useState(false)
   
   // Filtered drivers based on search term
@@ -63,7 +68,7 @@ const  Drivers = () => {
     return matchesName && matchesCarType;
   })
   .map((driver) => {
-     // Calculate total ratings from school_rating and student_rating
+     // Calculate total ratings from school_rating and riders_rating
     const totalSchoolRating = driver?.school_rating?.reduce((sum, r) => sum + r, 0) || 0;
     const totalStudentRating = driver?.student_rating?.reduce((sum, r) => sum + r, 0) || 0;
 
@@ -141,8 +146,12 @@ const  Drivers = () => {
   //Close add-new-line Modal
   const handleCloseModal = () => {
     setIsAddingNewLineModalOpen(false)
-    setLineName("");
-    setLineSchool("");
+    setLineName("")
+    setLineSchool("")
+    setCompanyName('')
+    setCoordinates('')
+    setLatitude(null)
+    setLongitude(null)
     setLineTimeTable(defaultTimeTable)
     setFirstDayTimeSelected(null)
   }
@@ -161,6 +170,30 @@ const  Drivers = () => {
         latitude: selectedSchool.latitude,
         longitude: selectedSchool.longitude,
       });
+    }
+  };
+
+  // Handle add company location (lat,long)
+  const handleCoordinatesChange = (input) => {
+    setCoordinates(input);
+  
+    // ✅ Extract lat,long values when user pastes them
+    const coordsArray = input.split(",");
+    if (coordsArray.length === 2) {
+      const lat = parseFloat(coordsArray[0].trim());
+      const long = parseFloat(coordsArray[1].trim());
+  
+      if (!isNaN(lat) && !isNaN(long)) {
+        setLatitude(lat);
+        setLongitude(long);
+      } else {
+        setLatitude(null);
+        setLongitude(null);
+        createAlert("الرجاء إدخال إحداثيات صحيحة بصيغة (lat,long)");
+      }
+    } else {
+      setLatitude(null);
+      setLongitude(null);
     }
   };
 
@@ -201,8 +234,18 @@ const  Drivers = () => {
 
   // Handle add new line
   const handleAddLine = async () => {
-    if (!lineName || !lineSchool || !lineSchoolLocation) {
-      alert("الرجاء ملئ جميع الفراغات");
+    if (!lineName) {
+      alert("الرجاء تحديد اسم الخط");
+      return;
+    }
+
+    if(riderType === 'student' && (!lineSchool || !lineSchoolLocation)) {
+      alert("الرجاء تحديد المدرسة");
+      return;
+    }
+
+    if(riderType === "employee" && (!companyName || !coordinates || latitude === null || longitude === null)) {
+      alert("الرجاء تحديد اسم و موقع الشركة");
       return;
     }
 
@@ -223,21 +266,31 @@ const  Drivers = () => {
         lineName,
         line_active:false,
         line_index:null,
-        lineSchool,
-        line_school_location: lineSchoolLocation,
         lineTimeTable: lineTimeTable.map((day,index) => ({
           ...day,
           dayIndex: index,
           startTime: day.startTime ? Timestamp.fromDate(day.startTime) : null
         })),
-        students: [],
+        riders: [],
         current_trip: "first",
         first_trip_started: false,
         first_trip_finished: false,
         second_trip_started: false,
         second_trip_finished: false,
         started_the_line: null,
-        arrived_to_school: null
+        arrived_to_destination: null,
+        ...(riderType === "student"
+          ? {
+              line_destination: lineSchool,
+              line_destination_location: lineSchoolLocation,
+            }
+          : {
+              line_destination: companyName,
+              line_destination_location: {
+                latitude: Number(latitude),
+                longitude: Number(longitude),
+              },
+            }),
       };
 
       // Fetch driver document
@@ -351,33 +404,33 @@ const  Drivers = () => {
     setNewDayTime(null)
   }
 
-  // Open line students list
+  // Open line riders list
   const toggleLine = (index) => {
     setExpandedLine((prev) => (prev === index ? null : index));
   }
 
-  // Delete student from the line
-  const deleteStudentFromLineHandler = async (studentId, lineIndex, driverId) => {
-    if(isDeletingStudentFromLine) return
+  // Delete rider from the line
+  const deleteRiderFromLineHandler = async (riderId, lineIndex, driverId) => {
+    if(isDeletingRiderFromLine) return
 
     const confirmDelete = window.confirm("هل تريد فعلاً إزالة هذا الطالب من الخط؟")
     if (!confirmDelete) return
 
-    setIsDeletingStudentFromLine(true)
+    setIsDeletingRiderFromLine(true)
 
     try {
       const driverRef = doc(DB, "drivers", driverId);
-      const studentRef = doc(DB, "students", studentId);
+      const riderRef = doc(DB, "riders", riderId);
   
       // Get the current lines
       const currentLines = selectedDriver.line || [];
   
-      // Update the specific line by removing the student
+      // Update the specific line by removing the rider
       const updatedLines = currentLines.map((line, idx) => {
         if (idx === lineIndex) {
           return {
             ...line,
-            students: line.students.filter((student) => student.id !== studentId),
+            riders: line.riders.filter((rider) => rider.id !== riderId),
           };
         }
         return line;
@@ -391,8 +444,8 @@ const  Drivers = () => {
         line: updatedLines,
       });
   
-      // Reset the student's driver_id field
-      batch.update(studentRef, {
+      // Reset the rider's driver_id field
+      batch.update(riderRef, {
         driver_id: null,
       });
   
@@ -407,10 +460,10 @@ const  Drivers = () => {
   
       alert("تم حذف الطالب من الخط بنجاح");
     } catch (error) {
-      console.error("Error removing student from line:", error);
+      console.error("Error removing rider from line:", error);
       alert("خطأ أثناء محاولة الحذف. الرجاء المحاولة مرة ثانية");
     } finally {
-      setIsDeletingStudentFromLine(false)
+      setIsDeletingRiderFromLine(false)
     }
   }
 
@@ -429,22 +482,11 @@ const  Drivers = () => {
         // Get the current lines
         const currentLines = selectedDriver.line || [];
 
-        // Extract the students in the line to be deleted
-        const studentsToReset = currentLines[lineIndex]?.students || [];
+        // Extract the riders in the line to be deleted
+        const ridersToReset = currentLines[lineIndex]?.riders || [];
 
         // Remove the line from the driver's lines
         let updatedLines = currentLines.filter((_, idx) => idx !== lineIndex);
-
-        // Check if the deleted line was active
-        const wasActiveLine = currentLines[lineIndex]?.line_active;
-
-        if (wasActiveLine && updatedLines.length > 0) {
-            // Assign line_active: true to the next line in the list (if any)
-            updatedLines = updatedLines.map((line, idx) => ({
-                ...line,
-                line_active: idx === 0, // Set active to the first line in the list
-            }));
-        }
 
         // Use writeBatch for atomic updates
         const batch = writeBatch(DB);
@@ -454,10 +496,10 @@ const  Drivers = () => {
             line: updatedLines,
         });
 
-        // Reset the driver_id field for each student in the deleted line
-        studentsToReset.forEach((student) => {
-            const studentRef = doc(DB, "students", student.id);
-            batch.update(studentRef, {
+        // Reset the driver_id field for each rider in the deleted line
+        ridersToReset.forEach((rider) => {
+            const riderRef = doc(DB, "riders", rider.id);
+            batch.update(riderRef, {
                 driver_id: null,
             });
         });
@@ -493,11 +535,11 @@ const  Drivers = () => {
       const { id, line } = selectedDriver;
       const batch = writeBatch(DB);
 
-      // Loop through each line and update the students' driver_id to null
+      // Loop through each line and update the riders' driver_id to null
       (line || []).forEach((li) => {
-        (li.students || []).forEach((student) => {
-          const studentRef = doc(DB, "students", student.id);
-          batch.update(studentRef, { driver_id: null });
+        (li.riders || []).forEach((rider) => {
+          const riderRef = doc(DB, "riders", rider.id);
+          batch.update(riderRef, { driver_id: null });
         });
       });
 
@@ -594,13 +636,28 @@ const  Drivers = () => {
                       centered
                       footer={null}
                     >
-                        <div className='adding_new_line_main'>
-                          <input 
-                            type='text' 
-                            placeholder='اسم الخط'
-                            value={lineName}
-                            onChange={(e) => setLineName(e.target.value)}
-                          />
+                      <div className='adding_new_line_main'>
+                        <div className='new_line_riderType_btn_container'>
+                          <button 
+                            className={`new_line_riderType_btn ${riderType === 'student' ? 'new_line_riderType_btn_active' : ''}`}
+                            onClick={() => setRiderType('student')}
+                          >طالب
+                          </button>
+                          <button 
+                            className={`new_line_riderType_btn ${riderType === 'employee' ? 'new_line_riderType_btn_active' : ''}`}
+                            onClick={() => setRiderType('employee')}
+                          >موظف          
+                          </button>
+                        </div>
+
+                        <input 
+                          type='text' 
+                          placeholder='اسم الخط'
+                          value={lineName}
+                          onChange={(e) => setLineName(e.target.value)}
+                        />
+
+                        {riderType === "student" ? (
                           <select 
                             onChange={handleSchoolChange}
                             value={lineSchool}
@@ -613,46 +670,64 @@ const  Drivers = () => {
                               </option>
                             ))}
                           </select>
-                          <div className='line-time-table-container'>
-                            {lineTimeTable.map((day,index) => (
-                              <div key={index} className='line-time-table-container-box'>
-                                <p>{day.arabic_day}</p>
-                                <DatePicker                                  
-                                  selected={day.startTime}
-                                  onChange={(time) => handleTimeChange(day.day, time)}
-                                  showTimeSelect
-                                  showTimeSelectOnly
-                                  timeIntervals={15}
-                                  timeCaption="وقت البدء"
-                                  dateFormat="HH:mm"
-                                  className='private_car_request_form_date_day_input'
-                                  placeholderText="وقت البدء"
-                                />
-                              </div>                       
-                            ))}
-                          </div>
-
-                          {/* Show the copy button only after the first time is selected */}
-                          {firstDayTimeSelected && (
-                            <button style={{marginBottom:'10px',backgroundColor:'#16B1FF'}} onClick={copyTimeToAllDays}>
-                              نسخ لجميع الأيام
-                            </button>
-                          )}
-
-                          {addingNewLineLoading ? (
-                            <div style={{ width:'120px',height:'35px',backgroundColor:'#955BFE',borderRadius:'7px',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                              <ClipLoader
-                                color={'#fff'}
-                                loading={addingNewLineLoading}
-                                size={13}
-                                aria-label="Loading Spinner"
-                                data-testid="loader"
+                        ) : (
+                          <>
+                            <input 
+                              type="text" 
+                              placeholder="اسم الشركة"
+                              value={companyName}
+                              onChange={(e) => setCompanyName(e.target.value)}
+                            />
+                            <input 
+                              type="text" 
+                              placeholder="موقع الشركة" 
+                              value={coordinates}
+                              onChange={(e) => handleCoordinatesChange(e.target.value)}
+                            />
+                            
+                          </>
+                        )}
+                        
+                        <div className='line-time-table-container'>
+                          {lineTimeTable.map((day,index) => (
+                            <div key={index} className='line-time-table-container-box'>
+                              <p>{day.arabic_day}</p>
+                              <DatePicker                                  
+                                selected={day.startTime}
+                                onChange={(time) => handleTimeChange(day.day, time)}
+                                showTimeSelect
+                                showTimeSelectOnly
+                                timeIntervals={15}
+                                timeCaption="وقت البدء"
+                                dateFormat="HH:mm"
+                                className='private_car_request_form_date_day_input'
+                                placeholderText="وقت البدء"
                               />
-                            </div>
-                          ) : (
-                            <button onClick={handleAddLine}>اضف</button>
-                          )}
-                        </div> 
+                            </div>                       
+                          ))}
+                        </div>
+
+                        {/* Show the copy button only after the first time is selected */}
+                        {firstDayTimeSelected && (
+                          <button style={{marginBottom:'10px',backgroundColor:'#16B1FF'}} onClick={copyTimeToAllDays}>
+                            نسخ لجميع الأيام
+                          </button>
+                        )}
+
+                        {addingNewLineLoading ? (
+                          <div style={{ width:'120px',height:'35px',backgroundColor:'#955BFE',borderRadius:'7px',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                            <ClipLoader
+                              color={'#fff'}
+                              loading={addingNewLineLoading}
+                              size={13}
+                              aria-label="Loading Spinner"
+                              data-testid="loader"
+                            />
+                          </div>
+                        ) : (
+                          <button onClick={handleAddLine}>اضف</button>
+                        )}
+                      </div> 
                     </Modal>
                   </div>
 
@@ -677,7 +752,7 @@ const  Drivers = () => {
                                 onMouseLeave={(e) => (e.target.style.textDecoration = "none")}
                                 onClick={() => openLineInfoModal(line)}
                               >
-                                {line.lineName}  [{line.students.length}]
+                                {line.lineName}  [{line?.riders?.length}]
                               </h5>
                               <Modal
                                 title={selectedLine?.lineName}
@@ -754,17 +829,17 @@ const  Drivers = () => {
                               </div>                          
                             </div>
 
-                            {/* Dropdown for students */}
+                            {/* Dropdown for riders */}
                             <div className={`student-dropdown ${expandedLine === index ? "student-dropdown-open" : ""}`}>
-                              {line?.students?.length ? (
+                              {line?.riders?.length ? (
                                 <>
-                                  {line.students.map((student) => (
-                                      <div key={student.id} className='student-dropdown-item'>
-                                        <h5>{student.name} {student.family_name}</h5>
+                                  {line.riders.map((rider) => (
+                                      <div key={rider.id} className='student-dropdown-item'>
+                                        <h5>{rider.name} {rider.family_name}</h5>
                                         <button 
                                           className="assinged-item-item-delete-button" 
-                                          onClick={() => deleteStudentFromLineHandler(student.id, index, selectedDriver.id)}
-                                          disabled={isDeletingStudentFromLine}
+                                          onClick={() => deleteRiderFromLineHandler(rider.id, index, selectedDriver.id)}
+                                          disabled={isDeletingRiderFromLine}
                                         >
                                           <FcCancel size={24} />
                                         </button>

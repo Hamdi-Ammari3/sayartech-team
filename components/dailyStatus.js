@@ -87,7 +87,7 @@ const DailyStatus = () => {
         }
     };
 
-    // Color based on student trip status
+    // Color based on rider trip status
     const getTripClassName = (status) => {
         if (status === undefined || status === null) {
           return 'no-rating';
@@ -185,8 +185,8 @@ const DailyStatus = () => {
                     second_trip_finished: false,
                     current_trip: 'first',
                     line_active: false,
-                    students: line.students.map((student) => ({
-                        ...student,
+                    riders: line.riders.map((rider) => ({
+                        ...rider,
                         picked_up: false,
                         picked_from_school: false,
                         dropped_off: false,
@@ -201,12 +201,12 @@ const DailyStatus = () => {
                     start_the_journey: false,
                 });
     
-                // Update students in Firestore
+                // Update riders in Firestore
                 for (const line of updatedLines) {
-                    for (const student of line.students) {
-                        const studentDocRef = doc(DB, 'students', student.id);
-                        batch.update(studentDocRef, {
-                            student_trip_status: 'at home',
+                    for (const rider of line.riders) {
+                        const riderDocRef = doc(DB, 'riders', rider.id);
+                        batch.update(riderDocRef, {
+                            trip_status: 'at home',
                             picked_up: false,
                         });
                     }
@@ -287,9 +287,9 @@ const DailyStatus = () => {
                         footer={null}
                     >
                         <div className='line-info-conainer'>
-                            {selectedLine?.students.map((student, index) => (
+                            {selectedLine?.riders?.map((rider, index) => (
                                 <div key={index} className='line-info-student'>
-                                    <p>{student.name} {student.family_name}</p>
+                                    <p>{rider?.name} {rider?.family_name}</p>
                                 </div>
                             ))}
                         </div>
