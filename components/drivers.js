@@ -1,6 +1,6 @@
 import React,{useState} from 'react'
 import Image from 'next/image'
-import { doc,getDoc,writeBatch,Timestamp,updateDoc } from "firebase/firestore"
+import { collection, getDocs,doc,getDoc,writeBatch,Timestamp,updateDoc } from "firebase/firestore"
 import { DB } from '../firebaseConfig'
 import ClipLoader from "react-spinners/ClipLoader"
 import DatePicker from 'react-datepicker';

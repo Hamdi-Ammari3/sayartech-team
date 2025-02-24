@@ -113,7 +113,10 @@ const Connect = () => {
             // Extract latitude and longitude from the nested home_location object
             const homeCoords = selectedRider.home_location?.coords || {};
 
+            //   rider_type   student
+
             const riderInfo = {
+                rider_type:selectedRider.rider_type,
                 birth_date:selectedRider.birth_date,
                 checked_in_front_of_school: false,
                 dropped_off: false,
