@@ -7,6 +7,7 @@ import { useGlobalState } from '../globalState'
 import { BsArrowLeftShort } from "react-icons/bs"
 import { FcDeleteDatabase } from "react-icons/fc"
 import { FcCalendar } from "react-icons/fc"
+import { FcMediumPriority } from "react-icons/fc"
 import { Modal, Table } from "antd"
 import dayjs from "dayjs"
 import { GoogleMap,Marker } from "@react-google-maps/api"
@@ -35,8 +36,10 @@ const Students = () => {
   const [homeCoords, setHomeCoords] = useState(null)
   const [schoolCoords, setSchoolCoords] = useState(null)
   const [distance, setDistance] = useState(null)
-  const [isEditingMonthlyFee,setIsEditingMonthlyFee] = useState(false)
-  const [newStudentMonthlyFee,setNewStudentMonthlyFee] = useState(0)
+  const [monthlySubsModal,setMonthlySubsModal] = useState(false)
+  const [totalSubAmount,setTotalSubAmount] = useState("0")
+  const [companyCommission,setCompanyCommission] = useState("0")
+  const [driverCommission,setDriverCommission] = useState("0")
   const [editMonthlyFeeLoading,setEditMonthlyFeeLoading] = useState(false)
   
   // Filtered students based on search term
@@ -79,9 +82,9 @@ const Students = () => {
 
   // Handle back action
   const goBack = () => {
-    setSelectedStudent(null);
+    setSelectedStudent(null)
     setIsEditing(false)
-    setIsEditingMonthlyFee(false)
+    setMonthlySubsModal(false)
   };
 
   //Calculate student age
@@ -260,7 +263,7 @@ const Students = () => {
     } finally {
       setIsSavingNewTimeTable(false)
     }
-  };
+  }
 
   //Edit Student car type 
   const editStudentData = async() => {
@@ -294,9 +297,72 @@ const Students = () => {
     }
   }
 
+  // Open monthly-subs modal
+  const openMonthlySubsModal = (rider) => {
+    setMonthlySubsModal(true)
+    setTotalSubAmount(rider.monthly_sub > 0 ? rider.monthly_sub : '0')
+    setCompanyCommission(rider.company_commission > 0 ? rider.company_commission : '0')
+    setDriverCommission(rider.driver_commission > 0 ? rider.driver_commission : '0')
+  }
+
+  // Close monthly-subs modal
+  const handleCloseMonthlySubsModal = () => {
+    setMonthlySubsModal(false)
+    setTotalSubAmount("0")
+    setCompanyCommission("0")
+    setDriverCommission("0")
+  }
+
+  // Format money input format
+  const formatNumber = (value) => {
+    if (!value) return '';
+    return Number(value.toString().replace(/,/g, '')).toLocaleString('en-US');
+  }
+
+  // Handle total subscription change
+  const handleTotalSubAmountChange = (value) => {
+    const total = Number(value.replace(/,/g, '')) || 0;
+    setTotalSubAmount(total)
+    setDriverCommission(total - companyCommission)
+  }
+
+  // Handle company commission change
+  const handleCompanyCommissionChange = (value) => {
+    const commission = Number(value.replace(/,/g, '')) || 0;
+    setCompanyCommission(commission)
+    setDriverCommission(totalSubAmount - commission)
+  }
+
+  const ensureAllMonthsExist = (bill, monthlySub,companyCom) => {
+    const updatedBill = { ...bill }; // Clone the existing bill object
+    const currentYear = new Date().getFullYear();
+  
+    for (let month = 1; month <= 12; month++) {
+      const key = `${currentYear}-${String(month).padStart(2, "0")}`;
+  
+      if (!updatedBill[key]) {
+        updatedBill[key] = {
+          driver_commission_amount: monthlySub,
+          company_commission_amount: companyCom,
+          start_date: null,
+          end_date: null,
+          paid: false,
+        };
+      }
+    }
+  
+    return updatedBill;
+  };
+
+  // Function to get days in the current month
+  const getDaysInMonth = (year, month) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+
   //Edit student monthly fee
   const editStudentMonthlyFee = async () => {
-    if (newStudentMonthlyFee < 0) {
+    if (totalSubAmount <= 0 || companyCommission < 0 || driverCommission < 0) {
       alert("الرجاء ادخال مبلغ مالي صحيح");
       return;
     }
@@ -305,40 +371,58 @@ const Students = () => {
 
     try {
       const studentRef = doc(DB, "riders", selectedStudent.id)
+      const studentDoc = await getDoc(studentRef);
+      if (!studentDoc.exists()) {
+        alert("الحساب غير موجود");
+        return;
+      }
+
       const batch = writeBatch(DB)
 
-      // Update the student's monthly subscription fee in the students collection
-      batch.update(studentRef, { monthly_sub: Number(newStudentMonthlyFee) });
+      const studentData = studentDoc.data();
+      const updatedBill = ensureAllMonthsExist(studentData.bill || {}, driverCommission,companyCommission);
 
-      // Check if the student is assigned to a driver
-      if (selectedStudent.driver_id) {
-        const driverRef = doc(DB, "drivers", selectedStudent.driver_id);
-        const driverDoc = await getDoc(driverRef);
+      // Get current Iraqi date
+      const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }));
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      const currentMonthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
 
-        if (driverDoc.exists()) {
-          const driverData = driverDoc.data();
-          const updatedLines = driverData.line.map((line) => {
-            // Check if this line matches the student's school
-            if (line.line_destination === selectedStudent.destination) {
-              const updatedStudents = line.riders.map((rider) => {
-                if (rider.id === selectedStudent.id) {
-                  return { ...rider, monthly_sub: Number(newStudentMonthlyFee) };
-                }
-                return rider;
-              });
-              return { ...line, riders: updatedStudents };
-            }
-            return line;
-          });
+      // Loop through all months in the bill data and update accordingly
+      Object.keys(updatedBill).forEach((monthKey) => {
+        const bill = updatedBill[monthKey];
 
-          // Update the driver's document in the batch
-          batch.update(driverRef, { line: updatedLines });
-        } else {
-            console.log("Driver document not found.");
-            alert("حدث خطأ. السائق غير موجود.");
-            return;
+        if (bill.paid) {
+          return; // Skip the current iteration if the bill is paid
         }
-      }
+
+        if (bill.start_date) {
+          const startDate = new Date(bill.start_date);
+          const startDay = startDate.getDate();
+          const totalDays = getDaysInMonth(startDate.getFullYear(), startDate.getMonth());
+          const remainingDays = totalDays - startDay;
+
+          // Calculate new prorated amount for months with start_date
+          const newDailyRate = driverCommission / totalDays;
+          const newProratedAmount = Math.round(newDailyRate * remainingDays);
+          updatedBill[monthKey].driver_commission_amount = newProratedAmount;
+
+        } else if (monthKey < currentMonthKey) {
+          // For months before the current month, update to the full new amount
+          updatedBill[monthKey].driver_commission_amount = driverCommission;
+        } else {
+          // For the current month and future months, apply new rates
+          updatedBill[monthKey].driver_commission_amount = driverCommission;
+        }
+      });
+
+      // Update the student document with all fee values
+      batch.update(studentRef, { 
+        monthly_sub: Number(totalSubAmount.toString().replace(/,/g, "")),
+        company_commission: Number(companyCommission.toString().replace(/,/g, "")),
+        driver_commission: Number(driverCommission.toString().replace(/,/g, "")),
+        bill: updatedBill,
+      });
 
       // Commit the batch
       await batch.commit();
@@ -348,11 +432,15 @@ const Students = () => {
       // Update the local state
       setSelectedStudent((prev) => ({
         ...prev,
-        monthly_sub: newStudentMonthlyFee,
-      }));
+        monthly_sub: totalSubAmount,
+        company_commission: companyCommission,
+        driver_commission: driverCommission
+      }))
 
-      setNewStudentMonthlyFee(0)
-      setIsEditingMonthlyFee(false)
+      setTotalSubAmount(0)
+      setCompanyCommission(0)
+      setDriverCommission(0)
+      setMonthlySubsModal(false)
     } catch (error) {
       console.log("Error updating the monthly subscription fee:", error);
       alert("حدث خطا. الرجاء المحاولة مرة ثانية");
@@ -374,31 +462,34 @@ const Students = () => {
       const batch = writeBatch(DB);
       const studentRef = doc(DB, 'riders', studentId);
       const driverId = selectedStudent.driver_id;
+      const bills = selectedStudent.bill || {};
+      
+      // Get today's date in Iraqi time
+      const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }));
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1;
+      const currentMonthKey = `${year}-${String(month).padStart(2, "0")}`;
 
-      batch.delete(studentRef);
-
-      // If the student has an assigned driver, update the driver's lines
+      // Check if the student is still connected to a driver
       if (driverId) {
-        const driverRef = doc(DB, "drivers", driverId);
-
-        // Fetch the driver's document to update the correct line
-        const driverSnap = await getDoc(driverRef)
-        if (driverSnap.exists()) {
-          const driverData = driverSnap.data();
-          const updatedLine = (driverData.line || []).map((li) => {
-            return {
-              ...li,
-              riders: li.riders.filter((rider) => rider.id !== studentId),
-            };
-          });
-
-          // Update the driver's lines field with the modified data
-          batch.update(driverRef, { line: updatedLine });
-        }
+        alert("لا يمكن حذف هذا الطالب لأنه لا يزال مرتبطًا بسائق.");
+        return;
       }
 
-      //Commit the batch
+      // Check if the student has unpaid bills for the current or previous months
+      const unpaidBills = Object.entries(bills).some(([key, bill]) => {
+        return (!bill.paid) && (key === currentMonthKey || key < currentMonthKey);
+      });
+
+      if (unpaidBills) {
+        alert("لا يمكن حذف هذا الطالب بسبب وجود فواتير غير مدفوعة.");
+        return;
+      }
+
+      batch.delete(studentRef);
       await batch.commit()
+      setSelectedStudent(null)
+
       alert("تم الحذف بنجاح")
 
     } catch (error) {
@@ -406,7 +497,6 @@ const Students = () => {
       alert("حدث خطأ أثناء الحذف. حاول مرة أخرى.")
     } finally {
       setIsDeleting(false)
-      setSelectedStudent(null)
     }
   };
 
@@ -649,40 +739,69 @@ const Students = () => {
                     )}
                     
                   </div>
+
                   <div>
                     <h5 style={{marginLeft:'5px'}}>
                       {selectedStudent.monthly_sub ? Number(selectedStudent.monthly_sub).toLocaleString('en-US') : '0'}
                     </h5>
                     <h5 style={{marginLeft:'10px'}}>دينار</h5>
-                    {isEditingMonthlyFee ? (
-                      <div className='student-edit-car-type'>
-                        <input 
-                          value={newStudentMonthlyFee}
-                          onChange={(e) => setNewStudentMonthlyFee(e.target.value)}
-                          type='number'/>
-                        <>
-                          {editMonthlyFeeLoading ? (
-                            <div style={{ width:'50px',height:'32px',margin:'0px 0px 0px 5px',backgroundColor:' #955BFE',padding:'0px',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                              <ClipLoader
-                                color={'#fff'}
-                                loading={editMonthlyFeeLoading}
-                                size={10}
-                                aria-label="Loading Spinner"
-                                data-testid="loader"
-                              />
-                            </div>
-                          ) : (
-                            <button style={{width:'50px',marginLeft:'5px',padding:'7px'}} onClick={() => editStudentMonthlyFee()}>تعديل</button>
-                          )}
-                        </>
-                        <button onClick={() => setIsEditingMonthlyFee(false)} style={{width:'50px',padding:'7px',border:'1px solid #955BFE',color:'#955BFE',backgroundColor:'#fff'}} className='cancel-time-table-button'>الغاء</button>
+                    <Image src={money} style={{marginLeft:'20px'}} width={18} height={18} alt='money'/>
+                    <h5 className="student-open-edit-monthly-subs-modal" onClick={() => openMonthlySubsModal(selectedStudent)}>
+                      تعديل
+                    </h5>
+                    <Modal
+                      title='الاشتراك الشهري'
+                      open={monthlySubsModal}
+                      onCancel={handleCloseMonthlySubsModal}
+                      centered
+                      footer={null}
+                    >
+                      <div style={{ height: '500px', width:'100%',display:'flex',justifyContent:'center',alignItems:'center',margin:'0px' }}>
+                        <div className='student-edit-monthly-subs-container'>
+                          <div>
+                            <h5>المبلغ الجملي</h5>
+                            <input 
+                              value={formatNumber(totalSubAmount)}
+                              onChange={(e) => handleTotalSubAmountChange(e.target.value)}
+                              type='text'
+                            />
+                          </div>
+                          <div>
+                            <h5>حصة الشركة</h5>
+                            <input 
+                              value={formatNumber(companyCommission)}
+                              onChange={(e) => handleCompanyCommissionChange(e.target.value)}
+                              type='text'
+                            />
+                          </div>
+                          <div>
+                            <h5>حصة السائق</h5>
+                            <input 
+                              value={formatNumber(driverCommission)}
+                              type='text'
+                              readOnly
+                            />
+                          </div>
+                          <div style={{textAlign:'center',marginTop:'20px'}}>
+                            {editMonthlyFeeLoading ? (
+                              <div style={{ width:'80px',height:'30px',backgroundColor:' #955BFE',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                                <ClipLoader
+                                  color={'#fff'}
+                                  loading={editMonthlyFeeLoading}
+                                  size={10}
+                                  aria-label="Loading Spinner"
+                                  data-testid="loader"
+                                />
+                              </div>
+                            ) : (
+                              <button className='student-edit-monthly-subs-btn' onClick={() => editStudentMonthlyFee()}>تاكيد</button>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    ) : (
-                    <button className="student-edit-car-type-btn" onClick={() => setIsEditingMonthlyFee(true)}>
-                      <Image src={money} width={18} height={18} alt='money'/>
-                    </button>
-                    )}
+                    </Modal>
                   </div>
+
                   <div>
                     <h5>{selectedStudent.id}</h5>
                   </div>
@@ -763,9 +882,24 @@ const Students = () => {
           <div className='all-items-list'>
             {filteredStudents.map((student, index) => (
               <div key={index} onClick={() => selectStudent(student)} className='single-item' >
-                <h5>{student.full_name}</h5>
-                <h5>{student.destination}</h5>
-                <h5 className={student.driver_id ? 'student-has-driver' : 'student-without-driver'}>{student.driver_id ? 'نعم' : 'لا'}</h5>
+
+                <div style={{display:'flex',flexDirection:'row-reverse',alignItems:'center',justifyContent:'center'}}>
+                  <h5 style={{marginLeft:'5px'}}>{student.full_name}</h5>
+                  
+                  {student.monthly_sub === 0 && (
+                    <FcMediumPriority />
+                  )}
+                  
+                </div>
+                
+                <div>
+                  <h5>{student.destination}</h5>
+                </div>
+
+                <div>
+                  <h5 className={student.driver_id ? 'student-has-driver' : 'student-without-driver'}>{student.driver_id ? 'نعم' : 'لا'}</h5>
+                </div>
+                
               </div>
             ))}
           </div>

@@ -1,6 +1,6 @@
 import React,{useState} from 'react'
 import Image from 'next/image'
-import { collection, getDocs,doc,getDoc,writeBatch,Timestamp,updateDoc } from "firebase/firestore"
+import { doc,getDoc,writeBatch,Timestamp,updateDoc } from "firebase/firestore"
 import { DB } from '../firebaseConfig'
 import ClipLoader from "react-spinners/ClipLoader"
 import DatePicker from 'react-datepicker';
@@ -20,7 +20,7 @@ import { FiEdit2 } from "react-icons/fi"
 import { FcOk } from "react-icons/fc"
 
 const  Drivers = () => {
-  const { drivers,schools } = useGlobalState()
+  const { drivers,schools,companies } = useGlobalState()
 
   // Define the default line time table
   const defaultTimeTable = [
@@ -42,11 +42,9 @@ const  Drivers = () => {
   const [riderType,setRiderType] = useState('student')
   const [lineName,setLineName] = useState('')
   const [lineSchool,setLineSchool] = useState('')
-  const [companyName,setCompanyName] = useState('')
-  const [coordinates, setCoordinates] = useState("")
-  const [latitude, setLatitude] = useState(null)
-  const [longitude, setLongitude] = useState(null)
   const [lineSchoolLocation, setLineSchoolLocation] = useState(null)
+  const [lineCompany,setLineCompany] = useState('')
+  const [lineCompanyLocation, setLineCompanyLocation] = useState(null)
   const [lineTimeTable, setLineTimeTable] = useState(defaultTimeTable)
   const [firstDayTimeSelected, setFirstDayTimeSelected] = useState(null)
   const [editingDayTime, setEditingDayTime] = useState(null)
@@ -148,10 +146,7 @@ const  Drivers = () => {
     setIsAddingNewLineModalOpen(false)
     setLineName("")
     setLineSchool("")
-    setCompanyName('')
-    setCoordinates('')
-    setLatitude(null)
-    setLongitude(null)
+    setLineCompany('')
     setLineTimeTable(defaultTimeTable)
     setFirstDayTimeSelected(null)
   }
@@ -173,27 +168,20 @@ const  Drivers = () => {
     }
   };
 
-  // Handle add company location (lat,long)
-  const handleCoordinatesChange = (input) => {
-    setCoordinates(input);
-  
-    // ✅ Extract lat,long values when user pastes them
-    const coordsArray = input.split(",");
-    if (coordsArray.length === 2) {
-      const lat = parseFloat(coordsArray[0].trim());
-      const long = parseFloat(coordsArray[1].trim());
-  
-      if (!isNaN(lat) && !isNaN(long)) {
-        setLatitude(lat);
-        setLongitude(long);
-      } else {
-        setLatitude(null);
-        setLongitude(null);
-        createAlert("الرجاء إدخال إحداثيات صحيحة بصيغة (lat,long)");
-      }
-    } else {
-      setLatitude(null);
-      setLongitude(null);
+  // Handle school selection and capture its location
+  const handleCompanyChange = (e) => {
+    const selectedCompanyName = e.target.value;
+    setLineCompany(selectedCompanyName);
+
+    // Find the selected school from the schools array
+    const selectedCompany = companies.find(company => company.name === selectedCompanyName);
+
+    // If the school exists, update the location state
+    if (selectedCompany) {
+      setLineCompanyLocation({
+        latitude: selectedCompany.latitude,
+        longitude: selectedCompany.longitude,
+      });
     }
   };
 
@@ -232,6 +220,15 @@ const  Drivers = () => {
     );
   };
 
+  const generateBillStructure = (year) => {
+    const bill = {};
+    for (let month = 1; month <= 12; month++) {
+      const monthKey = `${year}-${String(month).padStart(2, "0")}`;
+      bill[monthKey] = { paid: false };
+    }
+    return bill;
+  };
+
   // Handle add new line
   const handleAddLine = async () => {
     if (!lineName) {
@@ -244,7 +241,7 @@ const  Drivers = () => {
       return;
     }
 
-    if(riderType === "employee" && (!companyName || !coordinates || latitude === null || longitude === null)) {
+    if(riderType === "employee" && (!lineCompany || !lineCompanyLocation)) {
       alert("الرجاء تحديد اسم و موقع الشركة");
       return;
     }
@@ -282,30 +279,39 @@ const  Drivers = () => {
         ...(riderType === "student"
           ? {
               line_destination: lineSchool,
-              line_destination_location: lineSchoolLocation,
+              line_destination_location: lineSchoolLocation
             }
           : {
-              line_destination: companyName,
-              line_destination_location: {
-                latitude: Number(latitude),
-                longitude: Number(longitude),
-              },
+              line_destination: lineCompany,
+              line_destination_location: lineCompanyLocation
             }),
       };
 
       // Fetch driver document
       const driverRef = doc(DB, "drivers", selectedDriver.id);
       const driverDoc = await getDoc(driverRef);
+
+      if (!driverDoc.exists()) {
+        throw new Error("السائق غير موجود في قاعدة البيانات.");
+      }
+
       const driverData = driverDoc.data();
 
-      // Add new line and update Firestore
-      const updatedLines = [...(driverData.line || []), newLine];
-      await updateDoc(driverRef, { line: updatedLines });
+      const updatedLines = driverData.line ? [...driverData.line.map(line => ({ ...line, riders: [...line.riders] }))] : [];
+
+      updatedLines.push(newLine);
+
+      // Check if `bill` field exists, if not, generate and add it
+      const updatedWage = driverData.wage || generateBillStructure(2025);
+
+
+      await updateDoc(driverRef, { line: updatedLines,wage: updatedWage });
 
       // Update local state
       setSelectedDriver((prevDriver) => ({
         ...prevDriver,
-        line: updatedLines
+        line: updatedLines,
+        wage: updatedWage,
       }));
 
       alert("تمت إضافة الخط بنجاح");
@@ -317,6 +323,7 @@ const  Drivers = () => {
       setAddingNewLineLoading(false)
       setLineName("")
       setLineSchool("")
+      setLineCompany("")
       setLineTimeTable(defaultTimeTable)
       setFirstDayTimeSelected(null)
     }
@@ -409,6 +416,11 @@ const  Drivers = () => {
     setExpandedLine((prev) => (prev === index ? null : index));
   }
 
+  // Function to get days in the current month
+  const getDaysInMonth = (year, month) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
   // Delete rider from the line
   const deleteRiderFromLineHandler = async (riderId, lineIndex, driverId) => {
     if(isDeletingRiderFromLine) return
@@ -435,6 +447,67 @@ const  Drivers = () => {
         }
         return line;
       });
+
+      // Fetch rider data
+      const riderDoc = await getDoc(riderRef);
+      if (!riderDoc.exists()) {
+          alert("الطالب غير موجود");
+          return;
+      }
+
+      const riderData = riderDoc.data();
+      let updatedBill = riderData.bill || {};
+
+      // Get the driver commission
+      const fullDriverCommission = riderData.driver_commission || 0;
+
+      // Get today's date in Iraqi time
+      const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }));
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      const day = today.getDate();
+      const currentMonthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+
+      // Calculate new amount based on days of usage
+      if (updatedBill[currentMonthKey]) {
+        let billEntry = updatedBill[currentMonthKey];
+
+        if (!billEntry.end_date) { 
+          billEntry.end_date = today.toISOString().split("T")[0];
+          let startDate = billEntry.start_date ? new Date(billEntry.start_date) : new Date(year, month - 1, 1);
+          const startDay = startDate.getDate();
+          const totalDays = getDaysInMonth(year, month - 1);
+          const usedDays = day - startDay + 1;
+
+          // Recalculate driver commission
+          const driverDailyRate = fullDriverCommission / totalDays;
+          const newDriverCommission = Math.round(driverDailyRate * usedDays);
+
+          //billEntry.amount = newAmount;
+          billEntry.driver_commission_amount = newDriverCommission;
+        }
+      }
+
+      // Fetch driver data
+      const driverDoc = await getDoc(driverRef);
+      if (!driverDoc.exists()) {
+        alert("السائق غير موجود");
+        return;
+      }
+
+      const driverData = driverDoc.data();
+      let updatedWages = driverData.complementaryWages || {};
+
+      // Ensure the month exists in wages
+      if (!updatedWages[currentMonthKey]) {
+        updatedWages[currentMonthKey] = [];
+      }
+
+      // Add the removed rider's amount to wages
+      updatedWages[currentMonthKey].push({
+        rider_id: riderId,
+        amount: updatedBill[currentMonthKey]?.driver_commission_amount || 0,
+      });
   
       // Use writeBatch for atomic updates
       const batch = writeBatch(DB);
@@ -442,11 +515,13 @@ const  Drivers = () => {
       // Update the driver's line field
       batch.update(driverRef, {
         line: updatedLines,
+        complementaryWages: updatedWages,
       });
   
       // Reset the rider's driver_id field
       batch.update(riderRef, {
         driver_id: null,
+        bill: updatedBill,
       });
   
       // Commit the batch
@@ -458,7 +533,7 @@ const  Drivers = () => {
         line: updatedLines,
       }));
   
-      alert("تم حذف الطالب من الخط بنجاح");
+      alert("تم حذف الطالب من الخط بنجاح وتحديث الفواتير");
     } catch (error) {
       console.error("Error removing rider from line:", error);
       alert("خطأ أثناء محاولة الحذف. الرجاء المحاولة مرة ثانية");
@@ -478,30 +553,77 @@ const  Drivers = () => {
 
     try {
         const driverRef = doc(DB, "drivers", driverId);
+        const driverDoc = await getDoc(driverRef);
+        if (!driverDoc.exists()) {
+          alert("السائق غير موجود");
+          return;
+        }
 
-        // Get the current lines
+        const driverData = driverDoc.data();
         const currentLines = selectedDriver.line || [];
-
-        // Extract the riders in the line to be deleted
         const ridersToReset = currentLines[lineIndex]?.riders || [];
-
-        // Remove the line from the driver's lines
         let updatedLines = currentLines.filter((_, idx) => idx !== lineIndex);
+
+        // Get today's date in Iraqi time
+        const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }));
+        const year = today.getFullYear();
+        const month = today.getMonth() + 1;
+        const day = today.getDate();
+        const currentMonthKey = `${year}-${String(month).padStart(2, "0")}`;
+
+        let updatedWages = driverData.complementaryWages || {};
+
+        // Ensure the month exists in wages
+        if (!updatedWages[currentMonthKey]) {
+          updatedWages[currentMonthKey] = [];
+        }
 
         // Use writeBatch for atomic updates
         const batch = writeBatch(DB);
 
+        for (const rider of ridersToReset) {
+          const riderRef = doc(DB, "riders", rider.id);
+          const riderDoc = await getDoc(riderRef);
+          if (!riderDoc.exists()) continue;
+    
+          const riderData = riderDoc.data();
+          let updatedBill = riderData.bill || {};
+    
+          if (updatedBill[currentMonthKey]) {
+            let billEntry = updatedBill[currentMonthKey];
+    
+            if (!billEntry.end_date) { 
+              billEntry.end_date = today.toISOString().split("T")[0];
+              let startDate = billEntry.start_date ? new Date(billEntry.start_date) : new Date(year, month - 1, 1);
+              const startDay = startDate.getDate();
+              const totalDays = getDaysInMonth(year, month - 1);
+              const usedDays = day - startDay + 1;
+    
+              // Calculate prorated driver commission
+              const fullDriverCommission = riderData.driver_commission || 0;
+              const driverDailyRate = fullDriverCommission / totalDays;
+              const newDriverCommission = Math.round(driverDailyRate * usedDays);
+    
+              billEntry.driver_commission_amount = newDriverCommission;
+    
+              // Add the removed rider's amount to wages
+              updatedWages[currentMonthKey].push({
+                rider_id: rider.id,
+                amount: newDriverCommission,
+              });
+            }
+          }
+          // Reset rider's driver_id and update the bill
+          batch.update(riderRef, {
+            driver_id: null,
+            bill: updatedBill,
+          });
+        }
+
         // Update the driver's line field
         batch.update(driverRef, {
             line: updatedLines,
-        });
-
-        // Reset the driver_id field for each rider in the deleted line
-        ridersToReset.forEach((rider) => {
-            const riderRef = doc(DB, "riders", rider.id);
-            batch.update(riderRef, {
-                driver_id: null,
-            });
+            complementaryWages: updatedWages,
         });
 
         // Commit the batch
@@ -513,7 +635,7 @@ const  Drivers = () => {
             line: updatedLines,
         }));
 
-        alert("تم حذف الخط وجميع طلابه بنجاح");
+        alert("تم حذف الخط وجميع طلابه بنجاح وتحديث الفواتير");
     } catch (error) {
         console.error("Error removing line:", error);
         alert("خطأ أثناء محاولة حذف الخط. الرجاء المحاولة مرة ثانية");
@@ -532,16 +654,33 @@ const  Drivers = () => {
     setIsDeleting(true);
 
     try {
-      const { id, line } = selectedDriver;
+      const { id, line,wage } = selectedDriver;
       const batch = writeBatch(DB);
 
-      // Loop through each line and update the riders' driver_id to null
-      (line || []).forEach((li) => {
-        (li.riders || []).forEach((rider) => {
-          const riderRef = doc(DB, "riders", rider.id);
-          batch.update(riderRef, { driver_id: null });
-        });
+      // Check if the driver has riders in any line
+      const hasRiders = (line || []).some((li) => (li.riders || []).length > 0);
+      if (hasRiders) {
+        alert("لا يمكن حذف السائق لأنه لا يزال لديه طلاب مرتبطين بخطوطه.");
+        setIsDeleting(false);
+        return;
+      }
+
+      // Get today's date in Iraqi time
+      const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }));
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1;
+      const currentMonthKey = `${year}-${String(month).padStart(2, "0")}`;
+
+       // ✅ Check for unpaid wages in the current or previous months
+      const unpaidWages = Object.entries(wage).some(([key, bill]) => {
+        return (!bill.paid) && (key === currentMonthKey || key < currentMonthKey);
       });
+
+      if (unpaidWages) {
+        alert("لا يمكن حذف السائق لأنه لم يتقاضى أجره عن الشهر الحالي أو السابق.");
+        setIsDeleting(false);
+        return;
+      }
 
       // Delete the driver document
       const driverRef = doc(DB, "drivers", id);
@@ -549,6 +688,7 @@ const  Drivers = () => {
 
       // Commit the batch update
       await batch.commit();
+      setSelectedDriver(null)
 
       alert("تم الحذف بنجاح، وتم تحديث بيانات الطلاب المرتبطين بالسائق.");
     } catch (error) {
@@ -556,7 +696,6 @@ const  Drivers = () => {
       alert("حدث خطأ أثناء الحذف. حاول مرة أخرى.");
     } finally {
       setIsDeleting(false);
-      setSelectedDriver(null)
     }
   }
 
@@ -671,21 +810,18 @@ const  Drivers = () => {
                             ))}
                           </select>
                         ) : (
-                          <>
-                            <input 
-                              type="text" 
-                              placeholder="اسم الشركة"
-                              value={companyName}
-                              onChange={(e) => setCompanyName(e.target.value)}
-                            />
-                            <input 
-                              type="text" 
-                              placeholder="موقع الشركة" 
-                              value={coordinates}
-                              onChange={(e) => handleCoordinatesChange(e.target.value)}
-                            />
-                            
-                          </>
+                          <select 
+                            onChange={handleCompanyChange}
+                            value={lineCompany}
+                            style={{width:'280px'}}
+                          >
+                            <option value=''>المؤسسة</option>
+                            {companies.map(company => (
+                              <option key={company.id} value={company.name}>
+                                {company.name}
+                              </option>
+                            ))}
+                          </select>
                         )}
                         
                         <div className='line-time-table-container'>
@@ -763,9 +899,7 @@ const  Drivers = () => {
                               >
                                 <div className='line-info-conainer'>
                                   <div>
-                                    <p style={{marginLeft:'5px'}}>المدرسة</p>
-                                    <p style={{marginLeft:'5px'}}>:</p>
-                                    <p>{selectedLine?.lineSchool}</p>
+                                    <p>{selectedLine?.line_destination}</p>
                                   </div>
                                   {/* New Table for Start Times */}
                                   <div className="line-time-table">
@@ -908,9 +1042,15 @@ const  Drivers = () => {
           <div className='all-items-list'>
             {filteredDrivers.map((driver, index) => (
               <div key={index} onClick={() => selectDriver(driver)} className='single-item'>
-                <h5>{`${driver.driver_full_name} ${driver.driver_family_name}`}</h5>
-                <h5>{driver.driver_car_type}</h5>
-                <h5 className={getRatingClassName(driver.avgRating)}>{driver.avgRating === '-' ? '-' : driver.avgRating}</h5>
+                <div>
+                  <h5>{`${driver.driver_full_name} ${driver.driver_family_name}`}</h5>
+                </div>
+                <div>
+                  <h5>{driver.driver_car_type}</h5>
+                </div>
+                <div>
+                  <h5 className={getRatingClassName(driver.avgRating)}>{driver.avgRating === '-' ? '-' : driver.avgRating}</h5>
+                </div>              
               </div>
             ))}
           </div>

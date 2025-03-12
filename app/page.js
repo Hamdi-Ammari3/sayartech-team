@@ -7,11 +7,12 @@ import './style.css'
 import Navbar from '../components/navBar'
 import Main from '../components/main'
 import DailyStatus from '../components/dailyStatus'
-import Connect from '../components/connect';
+import TrackingMap from '../components/trackingMap'
+import Connect from '../components/connect'
 import Students from '../components/students'
 import Employees from '../components/employees'
 import Drivers from '../components/drivers'
-import Schools from '../components/schools'
+import Destination from '../components/destination'
 import Email from '../components/email'
 import PrivateCarRequest from '../components/privateCarRequest'
 
@@ -57,7 +58,9 @@ const Dashboard = () => {
         return <Main/>
       case 'الحالة اليومية':
         return <DailyStatus/>
-      case 'ربط الطلاب مع سواق':
+      case 'متابعة السائقين':
+        return <TrackingMap/>
+      case 'ربط الركاب مع سواق':
         return <Connect/>
       case 'الطلاب' :
         return <Students/>
@@ -65,8 +68,8 @@ const Dashboard = () => {
         return <Employees/>
       case 'السواق':
         return <Drivers/>
-      case 'المدارس' :
-        return <Schools/>
+      case 'المؤسسات' :
+        return <Destination/>
       case 'رسائل':
         return <Email/>
       case 'طلبات سيارات خاصة':
@@ -99,10 +102,17 @@ const Dashboard = () => {
             </div>
 
             <div
-              onClick={() => handleSectionSelect('ربط الطلاب مع سواق')}
-              className={activeSection === 'ربط الطلاب مع سواق' ? 'active':''}
+              onClick={() => handleSectionSelect('متابعة السائقين')}
+              className={activeSection === 'متابعة السائقين' ? 'active':''}
             >
-              <h4 >ربط الطلاب مع سواق</h4>
+              <h4 >متابعة السائقين</h4>
+            </div>
+
+            <div
+              onClick={() => handleSectionSelect('ربط الركاب مع سواق')}
+              className={activeSection === 'ربط الركاب مع سواق' ? 'active':''}
+            >
+              <h4 >ربط الركاب مع سواق</h4>
             </div>
 
             <div
@@ -127,10 +137,10 @@ const Dashboard = () => {
             </div>
 
             <div
-              onClick={() => handleSectionSelect('المدارس')}
-              className={activeSection === 'المدارس' ? 'active':''}
+              onClick={() => handleSectionSelect('المؤسسات')}
+              className={activeSection === 'المؤسسات' ? 'active':''}
             >
-              <h4 >المدارس</h4>
+              <h4>المؤسسات</h4>
             </div>
             
             <div

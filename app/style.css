@@ -148,44 +148,43 @@
     cursor: pointer;
 }
 .main-box{
-    display: flex;
+  display: flex;
 }
 .side-box{
-    width: 20vw;
-    height: 80vh;
-    margin-top: 15vh;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
+  width: 20vw;
+  height: 80vh;
+  overflow-y: auto;
+  margin-top: 15vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
 }
 .side-box > div {
-    width: 20vw;
-    height: 70vh;
-    margin-top: 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-start;
+  width: 20vw;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
 }
 .side-box > div > div {
-    width: 240px;
-    height: 45px;
-    margin-bottom: 25px;
-    border-radius: 0 20px 20px 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
+  width: 240px;
+  height: 40px;
+  margin-bottom: 8px;
+  border-radius: 0 20px 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 .side-box h4 {
-    font-size: 17px;
-    font-weight: 400;
-    margin: 0;
+  font-size: 17px;
+  font-weight: 400;
+  margin: 0;
 }
 .active {
-    background-color: #955BFE;
-    color: #fff!important;
-    box-shadow: -10px 13px 5px -14px rgba(0,0,0,0.5);
+  background-color: #955BFE;
+  color: #fff!important;
+  box-shadow: -10px 13px 5px -14px rgba(0,0,0,0.5);
 }
 .inner-box{
     width: 80vw;
@@ -315,14 +314,14 @@
     justify-content: center;
 }
 .white_card-section-container{
-    width:70vw;
-    height:80vh;
-    margin-top: 10px;
-    background-color: #fff;
-    border-radius: 10px;
-    box-shadow: -10px 13px 5px -14px rgba(0,0,0,0.5);
-    overflow-y: auto;
-    overflow-x: hidden;
+  width:70vw;
+  height:80vh;
+  margin-top: 10px;
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: -10px 13px 5px -14px rgba(0,0,0,0.5);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .students-section-inner-titles{
     height: 50px;
@@ -339,6 +338,78 @@
     align-items: center;
     justify-content: center;
 }
+.add_new_destination_box{
+  height: 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around;
+  border-bottom: 1px solid #f1f1f1;
+}
+.add_new_destination_btn{
+  width: 170px !important;
+  cursor: pointer;
+}
+.add_new_company_info_modal{
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.add_new_company_info_modal_form{
+  width: 300px;
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+}
+.add_new_company_info_modal_form > input{
+  width: 250px;
+  height: 35px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  border: 1px solid #f1f1f1;
+  border-radius: 10px;
+}
+.add_new_company_info_modal_form > button,.employee_add_destination_location_div > button{
+  width: 120px;
+  height: 30px;
+  border: none;
+  border-radius: 10px;
+  background-color: #955BFE;
+  color: #fff;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.toggle-between-school-company-container{
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  border-bottom: 1px solid #f1f1f1;
+}
+.toggle-between-school-company-btn{
+  width: 120px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  background-color: #F4F5FA;
+  font-size: 16px;
+  font-weight: 400;
+  cursor: pointer;
+}
+.toggle-between-school-company-btn.active {
+  background-color: #955BFE; /* Highlight color */
+  color: white;
+  font-weight: bold;
+}
 .line-calender-box{
   height: 75px;
   display: flex;
@@ -347,17 +418,16 @@
   justify-content: space-around;
   border-bottom: 1px solid #f1f1f1;
 }
-.line-calender-box-dayDate{
+.line-calender-box-dayDate,.add_new_destination_btn{
   width: 220px;
   height: 30px;
   text-align: center;
   background-color: #955BFE;
   box-shadow: -10px 10px 3px -14px rgba(0,0,0,0.5);
   border-radius: 7px;
-}
-.line-calender-box-dayDate > p {
   color: white;
 }
+
 .line-calender-box-dayTime{
   display: flex;
 }
@@ -380,7 +450,6 @@
   border-radius: 7px;
   cursor: pointer;
   font-size: 15px;
-  
 }
 .students-or-driver-btn{
   margin-right: 10px;
@@ -390,6 +459,19 @@
   color: #fff!important;
   box-shadow: -10px 13px 5px -14px rgba(0,0,0,0.5);
 }
+.tracking_driver_header{
+  width: 100%;
+  height: 6vh;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.tracking_driver_header > div{
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .connect-student-driver-container{
   height: 100%;
   width: 100%;
@@ -397,10 +479,8 @@
   flex-direction: column;
   align-items: center;
 }
-.connect-student-driver-container > div {
-  width: 100%;
-}
 .connect-student-driver-header{
+  width: 100%;
   height: 6vh;
   display: flex;
   flex-direction: row-reverse;
@@ -411,11 +491,11 @@
   position: relative;
   align-items: center;
 }
-.filter-item > input,.filter-item > select {
+.filter-item > input,.filter-item > select,.tracking_driver_header_select > select {
   width: 250px !important;
   height: 30px !important;
 }
-.filter-item > select {
+.filter-item > select,.tracking_driver_header_select > select {
   margin-inline: 10px;
 }
 .filter-item > button,.popup-marker-info > button {
@@ -470,8 +550,120 @@
   justify-content: center;
   cursor: pointer;
 }
+.tracking_driver_box{
+  width: 70vw;
+  height: 80vh;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: center;
+}
+.tracking_driver_sidebar{
+  width: 20vw;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid #f1f1f1;
+}
+.tracking_driver_header_select{
+  width: 100%;
+  height: 6vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tracking_driver_header_lines_info{
+  width: 100%;
+  height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tracking_driver_line_data{
+  width: 220px;
+  height: 30px;
+  text-align: center;
+  box-shadow: -10px 10px 3px -14px rgba(0,0,0,0.5);
+  border-radius: 7px;
+  margin-bottom: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+.tracking_driver_line_data:hover {
+  background-color: rgba(149, 91, 254, 0.5);
+}
+.active_line {
+  background-color: rgb(149, 91, 254);
+  color: white;
+}
+.tracking_driver_main{
+  width: 50vw;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.tracking_driver_main_header{
+  width: 50vw;
+  height: 7vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid #f1f1f1;
+}
+.tracking_driver_main_header_status_container{
+  width: 50vw;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: space-evenly;
+}
+.tracking_driver_main_header_status,.tracking_driver_main_header_select{
+  width:250px;
+  height: 5vh;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: wheat;
+}
+.tracking_driver_main_header_select{
+  background-color: transparent !important;
+}
+.tracking_driver_main_header_select > select{
+  text-align: center;
+  border: 1px solid wheat !important;
+}
+.tracking_driver_main_box{
+  width: 50vw;
+  height: 73vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tracking_driver_main_no_lines{
+  width: 50vw;
+  height: 20vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.tracking_driver_main_map{
+  width: 50vw;
+  height: 73vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .connect-student-driver-main{
-  height: 75vh;
+  height: 74vh;
+  width: 80vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .popup-marker-info{
   width: 150px;
@@ -518,7 +710,7 @@
   border: 1px solid #f1f1f1;
   border-radius: 10px;
 }
-.students-section-inner-title > select, .filter-item > select {
+.students-section-inner-title > select, .filter-item > select,.tracking_driver_header_select > select {
   height: 30px;
   color: #747474;
   text-align: center;
@@ -536,8 +728,11 @@
 .students-section-inner-title_search_input:focus,
 .students-section-inner-title > select:focus,
 .adding_new_line_form > select:focus,
+.add_new_company_info_modal_form > input,
 .filter-item > input:focus,
-.filter-item > select:focus
+.filter-item > select:focus,
+.tracking_driver_header_select > select:focus,
+.tracking_driver_main_header_select > select:focus
 {
   outline: none;
 }
@@ -588,13 +783,13 @@
   font-weight: 400;
   text-align: center;
 }
-.single-item h5:nth-of-type(1){
+.single-item > div:nth-of-type(1){
   flex: 4;
 }
-.single-item h5:nth-of-type(2){
+.single-item > div:nth-of-type(2){
   flex: 4;
 }
-.single-item h5:nth-of-type(3){
+.single-item > div:nth-of-type(3){
   flex: 3;
 }
 .student-has-driver,.high-rating,.student-at-home {
@@ -772,7 +967,9 @@
   .eligible-item-filter-input input, 
   .eligible-item-filter-input select,
   .student-edit-car-type > select,
-  .student-edit-car-type > input {
+  .student-edit-car-type > input,
+  .tracking_driver_main_header_select > select
+  {
     width: 250px;
     height: 30px;
     text-align: center;
@@ -796,6 +993,7 @@
   .student-edit-car-type > input:focus,
   .adding_new_line_main > input,
   .adding_new_line_main > select,
+  .employee_add_destination_location_div > select,
   .latitude_longitude_container > input
   {
     outline: none;
@@ -816,6 +1014,24 @@
     align-items: center;
     justify-content: center;
     margin-top: 5px;
+  }
+  .employee_add_destination_location_div{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .employee_add_destination_location_div > select {
+    width: 350px;
+    height: 30px;
+    margin-top: 7px;
+    text-align: center;
+    font-size: 16px;
+    border: 1px solid #f1f1f1;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .student-edit-car-type button{
     width: 200px;
@@ -1066,6 +1282,44 @@
     border-radius: 100%;
     cursor: pointer;
   }
+  .student-edit-monthly-subs-container{
+    width: 400px;
+    height: 250px;
+  }
+  .student-edit-monthly-subs-container > div{
+    height: 50px;
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: space-around;
+    align-items: center;
+  }
+  .student-edit-monthly-subs-container > div > h5{
+    width: 150px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 400;
+  }
+  .student-edit-monthly-subs-container > div > input{
+    width: 150px;
+    height: 30px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    border: 1px solid #f1f1f1;
+    border-radius: 10px;
+  }
+  .student-edit-monthly-subs-btn{
+    width: 80px;
+    height: 30px;
+    border: none;
+    border-radius: 10px;
+    background-color: #955BFE;
+    color: #fff;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+  }
   .student-detailed-data-main-firstBox{
     height: 63vh;
     width: 50%;
@@ -1148,6 +1402,16 @@
     text-align: center;
     font-size: 16px;
     font-weight: 700;
+    cursor: pointer;
+  }
+  .student-open-edit-monthly-subs-modal{
+    width: 70px;
+    height: 30px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #cccbcb;
     cursor: pointer;
   }
   .student-edit-car-type-btn{
@@ -1250,12 +1514,13 @@
     justify-content: space-around;
 }
 
-.private_car_request_form_date_day_input:focus,.adding_new_line_form > input {
+.private_car_request_form_date_day_input:focus,
+.adding_new_line_form > input:focus,
+.student-edit-monthly-subs-container > div > input:focus,
+.private_car_request_form_date_time_input:focus {
     outline: none;
- }
- .private_car_request_form_date_time_input:focus{
-    outline: none;
- }
+}
+
 .private_car_request_form_car{
     height: 25vh;
     width:70vw;

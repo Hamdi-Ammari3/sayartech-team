@@ -2,7 +2,7 @@ import React,{useState} from 'react'
 import ClipLoader from "react-spinners/ClipLoader"
 import { useGlobalState } from '../globalState'
 import { DB } from '../firebaseConfig'
-import { writeBatch, doc } from 'firebase/firestore'
+import { writeBatch, doc,getDoc } from 'firebase/firestore'
 import { GoogleMap,Marker,InfoWindow } from "@react-google-maps/api"
 import { IoIosCloseCircleOutline } from "react-icons/io"
 
@@ -72,6 +72,8 @@ const Connect = () => {
         const eligibleRiders = riders.filter(
         (rider) =>
             !rider.driver_id && // Not assigned to a driver
+            rider.destination_location?.latitude !== 0 && // latitude is not 0
+            rider.destination_location?.longitude !== 0 && // longitude is not 0
             rider.destination === selectedLine.line_destination // Same destination as the line
         )
         .map((rider) => ({
@@ -91,13 +93,31 @@ const Connect = () => {
         setMapLocked(true)
     };
 
+    // Function to get days in the current month
+    const getDaysInMonth = (year, month) => {
+        return new Date(year, month + 1, 0).getDate();
+    };
+
+    const ensureAllMonthsExist = (obj, key) => {
+        if (!obj[key]) {
+            obj[key] = [];
+        }
+    };
+
+    const calculateDaysBetween = (startDate, endDate) => {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        if (isNaN(start) || isNaN(end)) return 0; // Ensure both dates are valid
+    
+        return (end - start) / (1000 * 60 * 60 * 24) + 1; // +1 to include both start and end dates
+    };
+    
     // Assign rider to driver
     const handleConnectRider = async () => {
-        if (!selectedRider || !selectedDriver || !lineName) return;
+        if (!selectedRider || !selectedDriver || !lineName) return
 
-        const selectedLine = selectedDriver.line.find(
-            (li) => li.lineName === lineName
-        );
+        const selectedLine = selectedDriver.line.find((li) => li.lineName === lineName)
 
         if (!selectedLine) {
             alert("حدد الخط");
@@ -113,21 +133,19 @@ const Connect = () => {
             // Extract latitude and longitude from the nested home_location object
             const homeCoords = selectedRider.home_location?.coords || {};
 
-            //   rider_type   student
-
             const riderInfo = {
+                name: selectedRider.full_name || 'Unknown',
+                family_name:selectedRider.family_name,
                 rider_type:selectedRider.rider_type,
                 birth_date:selectedRider.birth_date,
                 checked_in_front_of_school: false,
-                dropped_off: false,
-                family_name:selectedRider.family_name,
+                dropped_off: false,            
                 home_address: selectedRider.home_address || '',
                 home_location: {
                 latitude: homeCoords.latitude || null,
                 longitude: homeCoords.longitude || null,
                 },
-                id:selectedRider.id,
-                name: selectedRider.full_name || 'Unknown',
+                id:selectedRider.id,            
                 notification_token:selectedRider.user_notification_token,
                 phone_number:selectedRider.phone_number,
                 picked_from_school: false,
@@ -140,8 +158,7 @@ const Connect = () => {
                 state:selectedRider.state,
                 city:selectedRider.city,
                 street:selectedRider.street,
-                tomorrow_trip_canceled: false,
-                monthly_sub:selectedRider.monthly_sub
+                tomorrow_trip_canceled: false,     
             };
 
             const batch = writeBatch(DB);
@@ -156,12 +173,73 @@ const Connect = () => {
                 line: selectedDriver.line.map((line) =>
                 line.lineName === lineName ? updatedLine : line
                 ),
-            });
+            })
+
+            const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }));
+            const year = today.getFullYear();
+            const month = today.getMonth();
+            const day = today.getDate(); // Local Iraqi date
+            const startDate = today.toISOString().split("T")[0]; // Format: YYYY-MM-DD
+
+            const totalDays = getDaysInMonth(year, month);
+            const remainingDays = totalDays - day;
+            const monthlySub = selectedRider.driver_commission || 0;
+            const dailyRate = monthlySub / totalDays;
+            const proratedAmount = Math.round(dailyRate * remainingDays); 
+
+            // Fetch the current bill data
+            const riderSnapshot = await getDoc(riderRef);
+            const riderData = riderSnapshot.data() || {};
+            const bills = riderData.bill || {};
+            const complementaryBill = riderData.complementary_bill || {};
+
+            // Find existing bill for the current month
+            const currentMonthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+
+            // Handle case where the rider was previously assigned and removed in the same month
+            if (bills[currentMonthKey] && bills[currentMonthKey].end_date) {
+                ensureAllMonthsExist(complementaryBill, currentMonthKey);
+                const oldStartDate = bills[currentMonthKey].start_date || `${year}-${String(month + 1).padStart(2, "0")}-01`;
+                const oldEndDate = bills[currentMonthKey].end_date;
+
+                const usedDays = calculateDaysBetween(oldStartDate, oldEndDate);
+                const oldAmount = Math.round(dailyRate * usedDays);
+
+                complementaryBill[currentMonthKey].push({
+                    amount: oldAmount,
+                    start_date: oldStartDate,
+                    end_date: oldEndDate,
+                });
+
+                bills[currentMonthKey].start_date = startDate;
+                bills[currentMonthKey].end_date = null;
+                bills[currentMonthKey].driver_commission_amount = proratedAmount;
+
+            } else {
+                // Rider is being assigned for the first time in this month
+                if (bills[currentMonthKey]) {
+                    // If bill exists, update it (only if it was not set earlier)
+                    if (!bills[currentMonthKey].start_date) {
+                        bills[currentMonthKey].start_date = startDate;
+                        bills[currentMonthKey].driver_commission_amount = proratedAmount;
+                    }
+                } else {
+                    // If no bill exists for the month, create a new one
+                    bills[currentMonthKey] = {
+                        start_date: startDate,
+                        end_date: null,
+                        driver_commission_amount: proratedAmount,
+                        paid: false,
+                    };
+                }
+            }
 
             // Update rider's driver_id
             batch.update(riderRef, {
                 driver_id: selectedDriver.id,
-            });
+                bill: bills,
+                complementary_bill: complementaryBill,
+            })
 
             await batch.commit();
 
@@ -253,7 +331,7 @@ const Connect = () => {
                 {/* Counter Display */}
                 {selectedDriver && lineName && (
                     <div className="selected-tag" style={{marginRight:'10px'}}>
-                        <h5>عدد الطلاب: {riderCount}</h5>
+                        <h5>عدد الركاب: {riderCount}</h5>
                     </div>
                 )}
                 

@@ -11,6 +11,7 @@ const initialState = {
   employees: [],
   drivers: [],
   schools: [],
+  companies:[],
   emails: [],
   privateCarRequests: [],
   unseenEmailsCount: 0,
@@ -43,7 +44,7 @@ export const GlobalStateProvider = ({ children }) => {
 
   useEffect(() => {
     
-    const unsubscribeStudents = onSnapshot(collection(DB, 'riders'), (snapshot) => {
+    const unsubscribeRiders = onSnapshot(collection(DB, 'riders'), (snapshot) => {
       const riders = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
       const students = riders.filter((rider) => rider.rider_type === 'student');
@@ -71,6 +72,14 @@ export const GlobalStateProvider = ({ children }) => {
       });
     });
 
+    const unsubscribeCompanies = onSnapshot(collection(DB, 'companies'), (snapshot) => {
+      const companies = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      dispatch({
+        type: 'FETCH_SUCCESS',
+        payload: { companies },
+      });
+    });
+
     const unsubscribeEmails = onSnapshot(collection(DB, 'emails'), (snapshot) => {
       const emails = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       const unseenEmailsCount = emails.filter((email) => !email.seen).length;
@@ -91,9 +100,10 @@ export const GlobalStateProvider = ({ children }) => {
 
     // Cleanup listeners on unmount
     return () => {
-      unsubscribeStudents();
+      unsubscribeRiders();
       unsubscribeDrivers();
       unsubscribeSchools();
+      unsubscribeCompanies
       unsubscribeEmails();
       unsubscribePrivateCarRequests();
     };

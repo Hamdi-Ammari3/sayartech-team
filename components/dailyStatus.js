@@ -272,13 +272,16 @@ const DailyStatus = () => {
             const unifiedStatus = getLineUnifiedStatus(line);
             return (
                 <div key={index} className="single-item">
-                    <h5
-                        onMouseEnter={(e) => (e.target.style.textDecoration = "underline")} // Add underline on hover
-                        onMouseLeave={(e) => (e.target.style.textDecoration = "none")}
-                        onClick={() => openLineInfoModal(line)}
-                    >
-                        {line?.lineName}
-                    </h5>
+                    <div>
+                        <h5
+                            onMouseEnter={(e) => (e.target.style.textDecoration = "underline")} // Add underline on hover
+                            onMouseLeave={(e) => (e.target.style.textDecoration = "none")}
+                            onClick={() => openLineInfoModal(line)}
+                        >
+                            {line?.lineName}
+                        </h5>
+                    </div>
+                    
                     <Modal
                         title={selectedLine?.lineName}
                         open={isOpeningLineInfoModal}
@@ -294,10 +297,14 @@ const DailyStatus = () => {
                             ))}
                         </div>
                     </Modal>
-                    <h5>{line?.driverName} {line?.driverFName}</h5>
-                    <h5 style={{flex:4}} className={getTripClassName(unifiedStatus)}>
-                        {getTripArabicNameLine(unifiedStatus)}
-                    </h5>
+                    <div>
+                        <h5>{line?.driverName} {line?.driverFName}</h5>
+                    </div>
+                    <div style={{flex:4}} >
+                        <h5 className={getTripClassName(unifiedStatus)}>
+                            {getTripArabicNameLine(unifiedStatus)}
+                        </h5>
+                    </div>  
                 </div>
             );
         });
