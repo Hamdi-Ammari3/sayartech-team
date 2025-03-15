@@ -559,7 +559,7 @@
   justify-content: center;
 }
 .tracking_driver_sidebar{
-  width: 20vw;
+  width: 18vw;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -599,7 +599,7 @@
   color: white;
 }
 .tracking_driver_main{
-  width: 50vw;
+  width: 52vw;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -607,7 +607,7 @@
   justify-content: center;
 }
 .tracking_driver_main_header{
-  width: 50vw;
+  width: 52vw;
   height: 7vh;
   display: flex;
   align-items: center;
@@ -615,14 +615,14 @@
   border-bottom: 1px solid #f1f1f1;
 }
 .tracking_driver_main_header_status_container{
-  width: 50vw;
+  width: 52vw;
   display: flex;
   flex-direction: row-reverse;
   align-items: center;
   justify-content: space-evenly;
 }
 .tracking_driver_main_header_status,.tracking_driver_main_header_select{
-  width:250px;
+  width:190px;
   height: 5vh;
   border-radius: 10px;
   display: flex;
@@ -631,6 +631,7 @@
   background-color: wheat;
 }
 .tracking_driver_main_header_select{
+  width:230px;
   background-color: transparent !important;
 }
 .tracking_driver_main_header_select > select{
@@ -638,21 +639,21 @@
   border: 1px solid wheat !important;
 }
 .tracking_driver_main_box{
-  width: 50vw;
+  width: 52vw;
   height: 73vh;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .tracking_driver_main_no_lines{
-  width: 50vw;
+  width: 52vw;
   height: 20vh;
   display: flex;
   align-items: flex-start;
   justify-content: center;
 }
 .tracking_driver_main_map{
-  width: 50vw;
+  width: 52vw;
   height: 73vh;
   display: flex;
   align-items: center;
@@ -725,7 +726,7 @@
 .students-section-inner-title:nth-child(3) > select {
   width: 150px;
 }
-.students-section-inner-title_search_input:focus,
+.students-section-inner-title > input:focus,
 .students-section-inner-title > select:focus,
 .adding_new_line_form > select:focus,
 .add_new_company_info_modal_form > input,

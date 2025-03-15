@@ -126,9 +126,24 @@ const Connect = () => {
 
         setLoading(true)
 
-        try {
-            const driverRef = doc(DB, "drivers", selectedDriver.id);
+        try {        
             const riderRef = doc(DB, "riders", selectedRider.id);
+            const riderSnapshot = await getDoc(riderRef);
+
+            if (!riderSnapshot.exists()) {
+                alert("خطأ: لا يمكن العثور على بيانات الراكب.");
+                return;
+            }
+    
+            const riderData = riderSnapshot.data();
+
+            // Check if the `bill` field exists
+            if (!riderData.bill) {
+                alert('يجب تحديد مبلغ الاشتراك الشهري قبل ربط الراكب مع سائق');
+                return;
+            }
+
+            const driverRef = doc(DB, "drivers", selectedDriver.id);
 
             // Extract latitude and longitude from the nested home_location object
             const homeCoords = selectedRider.home_location?.coords || {};
@@ -167,11 +182,11 @@ const Connect = () => {
             const updatedLine = {
                 ...selectedLine,
                 riders: [...selectedLine.riders, riderInfo],
-            };
+            }
 
             batch.update(driverRef, {
-                line: selectedDriver.line.map((line) =>
-                line.lineName === lineName ? updatedLine : line
+                    line: selectedDriver.line.map((line) =>
+                    line.lineName === lineName ? updatedLine : line
                 ),
             })
 
@@ -182,14 +197,11 @@ const Connect = () => {
             const startDate = today.toISOString().split("T")[0]; // Format: YYYY-MM-DD
 
             const totalDays = getDaysInMonth(year, month);
-            const remainingDays = totalDays - day;
+            const remainingDays = totalDays - (day - 1);
             const monthlySub = selectedRider.driver_commission || 0;
             const dailyRate = monthlySub / totalDays;
             const proratedAmount = Math.round(dailyRate * remainingDays); 
 
-            // Fetch the current bill data
-            const riderSnapshot = await getDoc(riderRef);
-            const riderData = riderSnapshot.data() || {};
             const bills = riderData.bill || {};
             const complementaryBill = riderData.complementary_bill || {};
 
@@ -201,7 +213,6 @@ const Connect = () => {
                 ensureAllMonthsExist(complementaryBill, currentMonthKey);
                 const oldStartDate = bills[currentMonthKey].start_date || `${year}-${String(month + 1).padStart(2, "0")}-01`;
                 const oldEndDate = bills[currentMonthKey].end_date;
-
                 const usedDays = calculateDaysBetween(oldStartDate, oldEndDate);
                 const oldAmount = Math.round(dailyRate * usedDays);
 
@@ -231,6 +242,23 @@ const Connect = () => {
                         driver_commission_amount: proratedAmount,
                         paid: false,
                     };
+                }
+            }
+
+            // Ensure all future months exist but do not modify past months
+            for (let i = month; i < 12; i++) {
+                const monthKey = `${year}-${String(i + 1).padStart(2, "0")}`;
+
+                if (!bills[monthKey]) {
+                    bills[monthKey] = {
+                        start_date: i === month ? startDate : null,
+                        end_date: null,
+                        driver_commission_amount: i === month ? proratedAmount : 0,
+                        paid: false,
+                        active: true,
+                    };
+                } else {
+                    bills[monthKey].active = true;
                 }
             }
 

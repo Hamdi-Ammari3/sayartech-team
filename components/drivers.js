@@ -451,36 +451,45 @@ const  Drivers = () => {
       // Fetch rider data
       const riderDoc = await getDoc(riderRef);
       if (!riderDoc.exists()) {
-          alert("الطالب غير موجود");
-          return;
+        alert("الطالب غير موجود");
+        return;
       }
 
       const riderData = riderDoc.data();
       let updatedBill = riderData.bill || {};
-
-      // Get the driver commission
-      const fullDriverCommission = riderData.driver_commission || 0;
 
       // Get today's date in Iraqi time
       const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }));
       const year = today.getFullYear();
       const month = today.getMonth();
       const day = today.getDate();
+      const todayISO = today.toISOString().split("T")[0];
       const currentMonthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+      const totalDays = getDaysInMonth(year, month);
+      const fullDriverCommission = riderData.driver_commission || 0;
+      const driverDailyRate = fullDriverCommission / totalDays;
+
+      // Deactivate all future months
+      for (let y = year; y <= 2099; y++) {
+        for (let m = y === year ? month + 1 : 0; m < 12; m++) {
+            const futureMonthKey = `${y}-${String(m + 1).padStart(2, "0")}`;
+            if (updatedBill[futureMonthKey]) {
+                updatedBill[futureMonthKey].active = false;
+            }
+        }
+      }
 
       // Calculate new amount based on days of usage
       if (updatedBill[currentMonthKey]) {
         let billEntry = updatedBill[currentMonthKey];
 
         if (!billEntry.end_date) { 
-          billEntry.end_date = today.toISOString().split("T")[0];
-          let startDate = billEntry.start_date ? new Date(billEntry.start_date) : new Date(year, month - 1, 1);
+          billEntry.end_date = todayISO;
+          let startDate = billEntry.start_date ? new Date(billEntry.start_date) : new Date(year,month,1);
           const startDay = startDate.getDate();
-          const totalDays = getDaysInMonth(year, month - 1);
           const usedDays = day - startDay + 1;
 
           // Recalculate driver commission
-          const driverDailyRate = fullDriverCommission / totalDays;
           const newDriverCommission = Math.round(driverDailyRate * usedDays);
 
           //billEntry.amount = newAmount;
@@ -567,13 +576,12 @@ const  Drivers = () => {
         // Get today's date in Iraqi time
         const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }));
         const year = today.getFullYear();
-        const month = today.getMonth() + 1;
+        const month = today.getMonth();
         const day = today.getDate();
-        const currentMonthKey = `${year}-${String(month).padStart(2, "0")}`;
+        const todayISO = today.toISOString().split("T")[0];
+        const currentMonthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
 
         let updatedWages = driverData.complementaryWages || {};
-
-        // Ensure the month exists in wages
         if (!updatedWages[currentMonthKey]) {
           updatedWages[currentMonthKey] = [];
         }
@@ -588,15 +596,25 @@ const  Drivers = () => {
     
           const riderData = riderDoc.data();
           let updatedBill = riderData.bill || {};
+
+          // Deactivate future months
+          for (let y = year; y <= 2099; y++) {
+            for (let m = y === year ? month + 1 : 0; m < 12; m++) {
+              const futureMonthKey = `${y}-${String(m + 1).padStart(2, "0")}`;
+              if (updatedBill[futureMonthKey]) {
+                updatedBill[futureMonthKey].active = false;
+              }
+            }
+          }
     
           if (updatedBill[currentMonthKey]) {
             let billEntry = updatedBill[currentMonthKey];
     
             if (!billEntry.end_date) { 
-              billEntry.end_date = today.toISOString().split("T")[0];
-              let startDate = billEntry.start_date ? new Date(billEntry.start_date) : new Date(year, month - 1, 1);
+              billEntry.end_date = todayISO;
+              let startDate = billEntry.start_date ? new Date(billEntry.start_date) : new Date(year,month,1);
               const startDay = startDate.getDate();
-              const totalDays = getDaysInMonth(year, month - 1);
+              const totalDays = getDaysInMonth(year, month);
               const usedDays = day - startDay + 1;
     
               // Calculate prorated driver commission

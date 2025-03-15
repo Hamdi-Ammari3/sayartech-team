@@ -349,7 +349,8 @@ const Employees = () => {
           company_commission_amount: companyCom,
           start_date: null,
           end_date: null,
-          paid: false,
+          active:false,
+          paid: false
         };
       }
     }
@@ -402,7 +403,7 @@ const Employees = () => {
           const startDate = new Date(bill.start_date);
           const startDay = startDate.getDate();
           const totalDays = getDaysInMonth(startDate.getFullYear(), startDate.getMonth());
-          const remainingDays = totalDays - startDay;
+          const remainingDays = totalDays - startDay + 1;
 
           // Calculate new prorated amount for months with start_date
           const newDailyRate = driverCommission / totalDays;

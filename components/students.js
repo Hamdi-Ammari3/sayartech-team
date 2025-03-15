@@ -346,7 +346,8 @@ const Students = () => {
           company_commission_amount: companyCom,
           start_date: null,
           end_date: null,
-          paid: false,
+          active:false,
+          paid: false
         };
       }
     }
@@ -358,7 +359,6 @@ const Students = () => {
   const getDaysInMonth = (year, month) => {
     return new Date(year, month + 1, 0).getDate();
   };
-
 
   //Edit student monthly fee
   const editStudentMonthlyFee = async () => {
@@ -400,7 +400,7 @@ const Students = () => {
           const startDate = new Date(bill.start_date);
           const startDay = startDate.getDate();
           const totalDays = getDaysInMonth(startDate.getFullYear(), startDate.getMonth());
-          const remainingDays = totalDays - startDay;
+          const remainingDays = totalDays - startDay + 1;
 
           // Calculate new prorated amount for months with start_date
           const newDailyRate = driverCommission / totalDays;
@@ -521,56 +521,56 @@ const Students = () => {
             <div className="item-detailed-data-main">
 
               <div className="student-detailed-data-main-firstBox">
-                  <div>
-                    <h5 style={{marginLeft:'4px'}}>{selectedStudent.full_name}</h5>
-                    <h5 style={{marginLeft:'4px'}}>-</h5>
-                    <h5 style={{marginLeft:'4px'}}>{selectedStudent.birth_date ? calculateAge(selectedStudent.birth_date) : '-'}</h5>
-                    <h5 style={{marginLeft:'10px'}}>سنة</h5>
-                    <button className="student-edit-car-type-btn" onClick={handleOpenMapModal}>
-                      <Image src={maps} width={16} height={16} alt='maps'/>
-                    </button>
-                    {/* Student Map Modal */}
-                    <Modal
-                      title='موقع الطالب'
-                      open={isModalMapVisible}
-                      onCancel={handleCloseMapModal}
-                      footer={[
-                        <div className='map-distance-div' key='distance'>
-                          <p>{distance} km</p>
-                        </div>
-                      ]}
-                      centered
-                    >
-                      <div style={{ height: '500px', width: '100%',margin:'0px' }}>
-                        {homeCoords && schoolCoords ? (
-                          <GoogleMap
-                          mapContainerStyle={containerStyle}
-                          center={homeCoords}
-                          zoom={12}
-                        >
-                          <Marker 
-                            position={homeCoords}
-                            label={{
-                              text:'المنزل',
-                              color:'#000',
-                              fontWeight:'bold'
-                            }}
-                          />
-                          <Marker 
-                            position={schoolCoords}
-                            label={{
-                              text:'المدرسة',
-                              color:'#000',
-                              fontWeight:'bold'
-                            }}
-                          />
-                        </GoogleMap> 
-                        ) : (
-                          <h5>Loading</h5>
-                        )}                   
-                      </div>                     
-                    </Modal>
-                  </div>
+                <div>
+                  <h5 style={{marginLeft:'4px'}}>{selectedStudent.full_name}</h5>
+                  <h5 style={{marginLeft:'4px'}}>-</h5>
+                  <h5 style={{marginLeft:'4px'}}>{selectedStudent.birth_date ? calculateAge(selectedStudent.birth_date) : '-'}</h5>
+                  <h5 style={{marginLeft:'10px'}}>سنة</h5>
+                  <button className="student-edit-car-type-btn" onClick={handleOpenMapModal}>
+                    <Image src={maps} width={16} height={16} alt='maps'/>
+                  </button>
+                  {/* Student Map Modal */}
+                  <Modal
+                    title='موقع الطالب'
+                    open={isModalMapVisible}
+                    onCancel={handleCloseMapModal}
+                    footer={[
+                      <div className='map-distance-div' key='distance'>
+                        <p>{distance} km</p>
+                      </div>
+                    ]}
+                    centered
+                  >
+                    <div style={{ height: '500px', width: '100%',margin:'0px' }}>
+                      {homeCoords && schoolCoords ? (
+                        <GoogleMap
+                        mapContainerStyle={containerStyle}
+                        center={homeCoords}
+                        zoom={12}
+                      >
+                        <Marker 
+                          position={homeCoords}
+                          label={{
+                            text:'المنزل',
+                            color:'#000',
+                            fontWeight:'bold'
+                          }}
+                        />
+                        <Marker 
+                          position={schoolCoords}
+                          label={{
+                            text:'المدرسة',
+                            color:'#000',
+                            fontWeight:'bold'
+                          }}
+                        />
+                      </GoogleMap> 
+                      ) : (
+                        <h5>Loading</h5>
+                      )}                   
+                    </div>                     
+                  </Modal>
+                </div>
                   <div>
                     <h5 style={{marginLeft:'5px'}}>{selectedStudent.destination || '-'}</h5>
                     <button className="student-edit-car-type-btn" onClick={handleOpenModal}>
@@ -578,7 +578,7 @@ const Students = () => {
                     </button>
                     {/* Timetable Modal */}
                     <Modal
-                      title="الجدول الدراسي"
+                      title="التوقيت الدراسي"
                       open={isModalVisible}
                       onCancel={handleCloseModal}
                       footer={[
@@ -690,6 +690,7 @@ const Students = () => {
                       />
                     </Modal>
                   </div>
+
                   <div>
                     <h5 style={{marginLeft:'4px'}}>{selectedStudent.home_address || '-'}</h5>
                     <h5 style={{marginLeft:'4px'}}>-</h5>
@@ -819,7 +820,7 @@ const Students = () => {
               </div>
 
               <div className="student-detailed-data-main-second-box">
-                <div className="item-detailed-data-main-second-box-content">
+                <div>
                   {driverInfo ? (
                     <div>
                       <div className="eligible-item-item">
@@ -860,7 +861,6 @@ const Students = () => {
                 value={nameFilter}
                 placeholder='الاسم' 
                 type='text' 
-                className='students-section-inner-title_search_input' 
               />
             </div>
             <div className='students-section-inner-title'>
