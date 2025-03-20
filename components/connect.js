@@ -194,7 +194,7 @@ const Connect = () => {
             const year = today.getFullYear();
             const month = today.getMonth();
             const day = today.getDate(); // Local Iraqi date
-            const startDate = today.toISOString().split("T")[0]; // Format: YYYY-MM-DD
+            const startDate = today.toISOString().split("T")[0];
 
             const totalDays = getDaysInMonth(year, month);
             const remainingDays = totalDays - (day - 1);

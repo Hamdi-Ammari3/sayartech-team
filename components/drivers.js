@@ -479,18 +479,24 @@ const  Drivers = () => {
         }
       }
 
+      let start_date = updatedBill[currentMonthKey]?.start_date
+      ? updatedBill[currentMonthKey].start_date
+      : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+
+      let newDriverCommission = 0;
+
       // Calculate new amount based on days of usage
       if (updatedBill[currentMonthKey]) {
         let billEntry = updatedBill[currentMonthKey];
 
         if (!billEntry.end_date) { 
           billEntry.end_date = todayISO;
-          let startDate = billEntry.start_date ? new Date(billEntry.start_date) : new Date(year,month,1);
+          let startDate = new Date(start_date);
           const startDay = startDate.getDate();
           const usedDays = day - startDay + 1;
 
           // Recalculate driver commission
-          const newDriverCommission = Math.round(driverDailyRate * usedDays);
+          newDriverCommission = Math.round(driverDailyRate * usedDays);
 
           //billEntry.amount = newAmount;
           billEntry.driver_commission_amount = newDriverCommission;
@@ -515,7 +521,9 @@ const  Drivers = () => {
       // Add the removed rider's amount to wages
       updatedWages[currentMonthKey].push({
         rider_id: riderId,
-        amount: updatedBill[currentMonthKey]?.driver_commission_amount || 0,
+        start_date: start_date,
+        end_date :todayISO,
+        amount: newDriverCommission,
       });
   
       // Use writeBatch for atomic updates
@@ -627,6 +635,10 @@ const  Drivers = () => {
               // Add the removed rider's amount to wages
               updatedWages[currentMonthKey].push({
                 rider_id: rider.id,
+                start_date: updatedBill[currentMonthKey]?.start_date
+                  ? updatedBill[currentMonthKey]?.start_date
+                  : `${year}-${String(month + 1).padStart(2, "0")}-01`,
+                end_date: todayISO,
                 amount: newDriverCommission,
               });
             }
