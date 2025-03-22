@@ -467,7 +467,7 @@ const  Drivers = () => {
       const currentMonthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
       const totalDays = getDaysInMonth(year, month);
       const fullDriverCommission = riderData.driver_commission || 0;
-      const driverDailyRate = fullDriverCommission / totalDays;
+      const driverDailyRate = fullDriverCommission / 30;
 
       // Deactivate all future months
       for (let y = year; y <= 2099; y++) {
@@ -627,7 +627,7 @@ const  Drivers = () => {
     
               // Calculate prorated driver commission
               const fullDriverCommission = riderData.driver_commission || 0;
-              const driverDailyRate = fullDriverCommission / totalDays;
+              const driverDailyRate = fullDriverCommission / 30;
               const newDriverCommission = Math.round(driverDailyRate * usedDays);
     
               billEntry.driver_commission_amount = newDriverCommission;
@@ -701,7 +701,7 @@ const  Drivers = () => {
       const month = today.getMonth() + 1;
       const currentMonthKey = `${year}-${String(month).padStart(2, "0")}`;
 
-       // ✅ Check for unpaid wages in the current or previous months
+       // Check for unpaid wages in the current or previous months
       const unpaidWages = Object.entries(wage).some(([key, bill]) => {
         return (!bill.paid) && (key === currentMonthKey || key < currentMonthKey);
       });

@@ -9,7 +9,7 @@ import { Modal } from "antd"
 
 const Destination = () => {
 
-  const { students, schools,employees,companies, drivers} = useGlobalState()
+  const { students,schools,employees,companies,drivers} = useGlobalState()
 
   const [selectedTab, setSelectedTab] = useState('schools')
   const [schoolNameFilter,setSchoolNameFilter] = useState('')
@@ -75,8 +75,8 @@ const Destination = () => {
     return matchesName
   });
 
-   // Sort schools by student count
-   const sortedSchools = filteredSchools.sort((a, b) => {
+  // Sort schools by student count
+  const sortedSchools = filteredSchools.sort((a, b) => {
     if (studentCountSortDirection === 'asc') return a.studentCount - b.studentCount;
     if (studentCountSortDirection === 'desc') return b.studentCount - a.studentCount;
     if (lineCountSortDirection === 'asc') return a.lineCount - b.lineCount;

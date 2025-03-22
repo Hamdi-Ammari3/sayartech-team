@@ -1,7 +1,7 @@
 import React,{useState,useEffect,useRef} from 'react'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
-import { GoogleMap,Marker } from "@react-google-maps/api"
+import { GoogleMap,Marker,InfoWindow  } from "@react-google-maps/api"
 import { useGlobalState } from '../globalState'
 
 const TrackingMap = () => {
@@ -15,6 +15,7 @@ const TrackingMap = () => {
     const [activeLines, setActiveLines] = useState([])
     const [selectedLine, setSelectedLine] = useState(null)
     const [selectedRider, setSelectedRider] = useState(null)
+    const [selectedMarker, setSelectedMarker] = useState(null)
     
     // Get today's date and dayIndex
     useEffect(() => {
@@ -447,10 +448,29 @@ const TrackingMap = () => {
                                                         url: homeIcon,
                                                         scaledSize: new window.google.maps.Size(35, 35)
                                                     }}
+                                                    onClick={() => setSelectedMarker(rider)} // Handle marker click
                                                 />
-                                            );
+                                            )
                                         })
                                     )}
+
+                                    {/* InfoWindow for displaying rider details */}
+                                    {selectedMarker && (
+                                        <InfoWindow
+                                            position={{
+                                                lat: selectedMarker.home_location.latitude,
+                                                lng: selectedMarker.home_location.longitude
+                                            }}
+                                            onCloseClick={() => setSelectedMarker(null)}
+                                        >
+                                            <div style={{textAlign:'center'}}>
+                                                <p style={{fontSize:'15px'}}>{selectedMarker.name} {selectedMarker.family_name}</p>
+                                                <p style={{fontWeight:'400',fontSize:'15px'}}>{selectedMarker.home_address}</p>
+                                                <p style={{fontWeight:'400',fontSize:'15px'}}>{selectedMarker.phone_number}</p>
+                                            </div>
+                                        </InfoWindow>
+                                    )}
+
                                 </GoogleMap>
                             </div>
                         )}

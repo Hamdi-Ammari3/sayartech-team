@@ -199,7 +199,7 @@ const Connect = () => {
             const totalDays = getDaysInMonth(year, month);
             const remainingDays = totalDays - (day - 1);
             const monthlySub = selectedRider.driver_commission || 0;
-            const dailyRate = monthlySub / totalDays;
+            const dailyRate = monthlySub / 30;
             const proratedAmount = Math.round(dailyRate * remainingDays); 
 
             const bills = riderData.bill || {};
