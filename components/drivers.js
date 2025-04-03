@@ -16,6 +16,7 @@ import { FaCaretDown } from "react-icons/fa6"
 import { FaPlus } from "react-icons/fa6";
 import { FiPlusSquare } from "react-icons/fi"
 import imageNotFound from '../images/NoImage.jpg'
+import switchLine from '../images/transfer.png'
 import { FiEdit2 } from "react-icons/fi"
 import { FcOk } from "react-icons/fc"
 
@@ -54,7 +55,14 @@ const  Drivers = () => {
   const [selectedLine, setSelectedLine] = useState(null)
   const [expandedLine, setExpandedLine] = useState(null)
   const [isDeletingRiderFromLine,setIsDeletingRiderFromLine] = useState(false)
+  const [isOpeningSwitchLineModal,setIsOpeningSwitchLineModal] = useState(false)
+  const [switchDriverID,setSwitchDriverID] = useState('')
+  const [switchLineStartDate,setSwitchLineStartDate] = useState('')
+  const [switchLineEndDate,setSwitchLineEndDate] = useState('')
+  const [switchedLineIndex,setSwitchedLineIndex] = useState('')
+  const [isTransferringLine,setIsTransferringLine] = useState(false)
   const [isDeletingLine,setIsDeletingLine] = useState(false)
+  
   
   // Filtered drivers based on search term
   const filteredDrivers = drivers.filter((driver) => {
@@ -559,6 +567,128 @@ const  Drivers = () => {
     }
   }
 
+  // Open switch line to other driver Modal
+  const openSwitchLineModal = (line,index) => {
+    setSelectedLine(line)
+    setSwitchedLineIndex(index)
+    setIsOpeningSwitchLineModal(true)
+  }
+
+  // Close switch line to other driver modal
+  const handleCloseSwitchLineModal = () => {
+    setSelectedLine(null)
+    setSwitchDriverID('')
+    setSwitchLineStartDate('')
+    setSwitchLineEndDate('')
+    setIsOpeningSwitchLineModal(false)
+  }
+
+  // Select substitute driver
+  const switchDriverIDChangeHandler = (e) => {
+    setSwitchDriverID(e.target.value)
+  }
+
+  // Handle date selection (date-only) [start periode]
+  const handleSwitchLineStartDate = (e) => {
+    setSwitchLineStartDate(e.target.value);
+  };
+
+  // Handle date selection (date-only) [start periode]
+  const handleSwitchLineEndDate = (e) => {
+    setSwitchLineEndDate(e.target.value);
+  };
+
+  // Handle transfer Line
+  const transferLineHandler = async () => {
+    if (isTransferringLine) return;
+
+    const confirmTransfer = window.confirm("هل تريد نقل هذا الخط إلى سائق آخر لفترة محددة؟");
+    if (!confirmTransfer) return;
+
+    setIsTransferringLine(true);
+
+    try {
+      const fromDriverRef = doc(DB, "drivers", selectedDriver.id);
+      const toDriverRef = doc(DB, "drivers", switchDriverID);
+
+      const [fromDriverDoc, toDriverDoc] = await Promise.all([
+        getDoc(fromDriverRef),
+        getDoc(toDriverRef)
+      ])
+
+      if (!fromDriverDoc.exists() || !toDriverDoc.exists()) {
+        alert("السائق غير موجود");
+        return;
+      }
+
+      const fromDriverData = fromDriverDoc.data();
+      const toDriverData = toDriverDoc.data();
+      const currentLines = fromDriverData.line || [];
+
+      if (!currentLines[switchedLineIndex]) {
+        alert("الخط غير موجود");
+        return;
+      }
+
+      // Convert startDate & endDate to Firestore Timestamps (without time)
+      const startDate = new Date(switchLineStartDate);
+      startDate.setUTCHours(0, 0, 0, 0); // Reset time to midnight
+
+      const endDate = new Date(switchLineEndDate);
+      endDate.setUTCHours(0, 0, 0, 0); // Reset time to midnight
+
+      const startTimestamp = Timestamp.fromDate(startDate); // ✅ Firestore Timestamp
+      const endTimestamp = Timestamp.fromDate(endDate); // ✅ Firestore Timestamp
+
+      // Get the selected line and update it for the original driver
+      let updatedOriginalDriverLines = [...currentLines];
+
+      updatedOriginalDriverLines[switchedLineIndex] = {
+        ...currentLines[switchedLineIndex], // Keep existing data
+        desactive_periode: { start: startTimestamp, end: endTimestamp },
+        subs_driver: switchDriverID
+      };
+
+      // Prepare the updated line for the substitute driver
+      let updatedLineForNewDriver = { 
+        ...currentLines[switchedLineIndex], // Keep the original line details
+        active_periode: { start: startTimestamp, end: endTimestamp },
+        original_driver: selectedDriver.id
+      };
+
+      let updatedToDriverLines = toDriverData.line || [];
+      updatedToDriverLines.push(updatedLineForNewDriver);
+
+
+      // Use batch update for atomic operations
+      const batch = writeBatch(DB);
+
+      batch.update(fromDriverRef, {
+        line: updatedOriginalDriverLines
+      });
+
+      batch.update(toDriverRef, {
+        line: updatedToDriverLines
+      });
+
+      // Commit the batch
+      await batch.commit();
+
+      // Update UI state
+      setSelectedDriver((prevDriver) => ({
+        ...prevDriver,
+        line: updatedOriginalDriverLines
+      }));
+
+      alert("تم نقل الخط بنجاح إلى السائق البديل!");
+    } catch (error) {
+      console.error("Error transferring line:", error);
+      alert("خطأ أثناء نقل الخط. الرجاء المحاولة مرة أخرى");
+    } finally {
+      setIsTransferringLine(false);
+    }
+  };
+
   // Delete an entire line
   const deleteLineHandler = async (lineIndex, driverId) => {
     if (isDeletingLine) return;
@@ -903,13 +1033,75 @@ const  Drivers = () => {
                         {selectedDriver?.line.map((line,index) => (
                           <div style={{width:'100%'}} key={index}>
                             <div className="assinged-item-box-item"> 
-                              <div>
+                              <div style={{justifyContent:'space-between'}}>
                                 <button 
                                   className="assinged-item-item-delete-button" 
                                   onClick={() => deleteLineHandler(index, selectedDriver.id)}
                                 >
                                   <FcCancel size={24} />
                                 </button>
+
+                                <button
+                                  className="assinged-item-item-delete-button" 
+                                  onClick={() => openSwitchLineModal(line,index)}
+                                >
+                                  <Image 
+                                    src={switchLine} 
+                                    style={{ objectFit: 'cover' }}  
+                                    width={18}
+                                    height={18}
+                                    alt='switch line'
+                                  />
+                                </button>
+                                <Modal
+                                  title={'تحويل الخط لسائق اخر'}
+                                  open={isOpeningSwitchLineModal}
+                                  onCancel={handleCloseSwitchLineModal}
+                                  centered
+                                  footer={null}
+                                >
+                                  <div className='switch-line-info-conainer'>
+
+                                    <div>
+                                      <p style={{fontWeight:'bold'}}>{selectedLine?.lineName}</p>
+                                    </div>
+
+                                    {/* Select substitute driver */}
+                                    <div className='swicth_line_driver_select'>
+                                      <select onChange={switchDriverIDChangeHandler} value={switchDriverID}>
+                                      <option value=''>السائق المعوض</option>
+                                        {drivers
+                                          .filter(driver => driver.id !== selectedDriver.id) // Exclude current driver
+                                          .map(driver => (
+                                            <option key={driver.id} value={driver.id}>
+                                              {driver.driver_full_name} {driver.driver_family_name}
+                                            </option>
+                                          ))}
+                                      </select>
+                                    </div>
+
+                                    {/* Start Date */}
+                                    <div className='swicth_line_periode_date'>
+                                      <label>تاريخ البداية</label>
+                                      <input type="date" value={switchLineStartDate} onChange={handleSwitchLineStartDate} />
+                                    </div>
+
+                                    {/* End Date */}
+                                    <div className='swicth_line_periode_date'>
+                                      <label>تاريخ النهاية</label>
+                                      <input type="date" value={switchLineEndDate} onChange={handleSwitchLineEndDate} />
+                                    </div>
+
+                                    {/* Submit Button */}
+                                    <button 
+                                      onClick={transferLineHandler}
+                                      className="assign-switch-line-button"
+                                    >
+                                      تأكيد
+                                    </button>
+
+                                  </div>
+                                </Modal>
                               </div>  
 
                               <h5 

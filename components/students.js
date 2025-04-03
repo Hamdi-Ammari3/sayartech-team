@@ -478,7 +478,7 @@ const Students = () => {
 
       // Check if the student has unpaid bills for the current or previous months
       const unpaidBills = Object.entries(bills).some(([key, bill]) => {
-        return (!bill.paid) && (key === currentMonthKey || key < currentMonthKey);
+        return (!bill.paid && bill.active) && (key === currentMonthKey || key < currentMonthKey);
       });
 
       if (unpaidBills) {
@@ -486,7 +486,7 @@ const Students = () => {
         return;
       }
 
-      batch.delete(studentRef);
+      batch.delete(studentRef)
       await batch.commit()
       setSelectedStudent(null)
 

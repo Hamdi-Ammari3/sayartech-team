@@ -711,7 +711,11 @@
   border: 1px solid #f1f1f1;
   border-radius: 10px;
 }
-.students-section-inner-title > select, .filter-item > select,.tracking_driver_header_select > select {
+.students-section-inner-title > select, 
+.filter-item > select,
+.tracking_driver_header_select > select,
+.swicth_line_driver_select > select
+{
   height: 30px;
   color: #747474;
   text-align: center;
@@ -719,6 +723,47 @@
   font-weight: 700;
   border: 1px solid #f1f1f1;
   border-radius: 10px;
+}
+.switch-line-info-conainer{
+  height: 350px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around;
+}
+.swicth_line_driver_select > select {
+  width: 250px;
+}
+.swicth_line_periode_date{
+  width: 250px;
+  height: 50px;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: space-between;
+}
+.swicth_line_periode_date > input{
+  width: 140px;
+  height: 30px;
+  color: #747474;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  border: 1px solid #f1f1f1;
+  border-radius: 10px;
+}
+.assign-switch-line-button{
+  width: 100px;
+  height: 30px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  border-radius: 7px;
+  background-color: #955BFE;
+  color: #fff;
+  cursor: pointer;
 }
 .students-section-inner-title:nth-child(2) > select {
   width: 280px;
@@ -733,7 +778,8 @@
 .filter-item > input:focus,
 .filter-item > select:focus,
 .tracking_driver_header_select > select:focus,
-.tracking_driver_main_header_select > select:focus
+.tracking_driver_main_header_select > select:focus,
+.swicth_line_driver_select > select:focus
 {
   outline: none;
 }
