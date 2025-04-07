@@ -113,7 +113,7 @@ const Connect = () => {
         return (end - start) / (1000 * 60 * 60 * 24) + 1; // +1 to include both start and end dates
     };
     
-    // Assign rider to driver
+    // Connect rider to driver
     const handleConnectRider = async () => {
         if (!selectedRider || !selectedDriver || !lineName) return
 
@@ -149,31 +149,32 @@ const Connect = () => {
             const homeCoords = selectedRider.home_location?.coords || {};
 
             const riderInfo = {
+                id:selectedRider.id,
+                rider_type:selectedRider.rider_type,
                 name: selectedRider.full_name || 'Unknown',
                 family_name:selectedRider.family_name,
-                rider_type:selectedRider.rider_type,
                 birth_date:selectedRider.birth_date,
-                checked_in_front_of_school: false,
-                dropped_off: false,            
-                home_address: selectedRider.home_address || '',
-                home_location: {
-                latitude: homeCoords.latitude || null,
-                longitude: homeCoords.longitude || null,
-                },
-                id:selectedRider.id,            
                 notification_token:selectedRider.user_notification_token,
-                phone_number:selectedRider.phone_number,
-                picked_from_school: false,
-                picked_up: false,
-                destination:selectedRider.destination,
-                destination_location: {
-                latitude: selectedRider.destination_location.latitude || null,
-                longitude: selectedRider.destination_location.longitude || null,
-                },
+                phone_number:selectedRider.phone_number, 
                 state:selectedRider.state,
                 city:selectedRider.city,
-                street:selectedRider.street,
-                tomorrow_trip_canceled: false,     
+                street:selectedRider.street,     
+                home_address: selectedRider.home_address || '',
+                home_location: {
+                    latitude: homeCoords.latitude || null,
+                    longitude: homeCoords.longitude || null,
+                },
+                destination:selectedRider.destination,
+                destination_location: {
+                    latitude: selectedRider.destination_location.latitude || null,
+                    longitude: selectedRider.destination_location.longitude || null,
+                },
+                tomorrow_trip_canceled: false,  
+                //tomorrow_trip_canceled: will be a date format so if today is the today canceled trip the rider will be excluded from the line 
+                picked_from_school: false,
+                picked_up: false,  
+                checked_in_front_of_school: false,
+                dropped_off: false,  
             };
 
             const batch = writeBatch(DB);

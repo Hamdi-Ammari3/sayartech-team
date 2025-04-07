@@ -13,7 +13,7 @@ import { FcDeleteDatabase } from "react-icons/fc"
 import { FcCancel } from "react-icons/fc"
 import { FaCaretUp } from "react-icons/fa6"
 import { FaCaretDown } from "react-icons/fa6"
-import { FaPlus } from "react-icons/fa6";
+import { FaPlus } from "react-icons/fa6"
 import { FiPlusSquare } from "react-icons/fi"
 import imageNotFound from '../images/NoImage.jpg'
 import switchLine from '../images/transfer.png'
@@ -269,21 +269,12 @@ const  Drivers = () => {
       const newLine = {
         id: newLineId,
         lineName,
-        line_active:false,
-        line_index:null,
         lineTimeTable: lineTimeTable.map((day,index) => ({
           ...day,
           dayIndex: index,
           startTime: day.startTime ? Timestamp.fromDate(day.startTime) : null
         })),
         riders: [],
-        current_trip: "first",
-        first_trip_started: false,
-        first_trip_finished: false,
-        second_trip_started: false,
-        second_trip_finished: false,
-        started_the_line: null,
-        arrived_to_destination: null,
         ...(riderType === "student"
           ? {
               line_destination: lineSchool,
@@ -293,6 +284,15 @@ const  Drivers = () => {
               line_destination: lineCompany,
               line_destination_location: lineCompanyLocation
             }),
+        line_active:false,
+        line_index:null,
+        current_trip: "first",
+        first_trip_started: false,
+        first_trip_finished: false,
+        second_trip_started: false,
+        second_trip_finished: false,
+        started_the_line: null,
+        arrived_to_destination: null,
       };
 
       // Fetch driver document
@@ -424,11 +424,6 @@ const  Drivers = () => {
     setExpandedLine((prev) => (prev === index ? null : index));
   }
 
-  // Function to get days in the current month
-  const getDaysInMonth = (year, month) => {
-    return new Date(year, month + 1, 0).getDate();
-  };
-
   // Delete rider from the line
   const deleteRiderFromLineHandler = async (riderId, lineIndex, driverId) => {
     if(isDeletingRiderFromLine) return
@@ -473,7 +468,6 @@ const  Drivers = () => {
       const day = today.getDate();
       const todayISO = today.toISOString().split("T")[0];
       const currentMonthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
-      const totalDays = getDaysInMonth(year, month);
       const fullDriverCommission = riderData.driver_commission || 0;
       const driverDailyRate = fullDriverCommission / 30;
 
@@ -689,6 +683,132 @@ const  Drivers = () => {
     }
   };
 
+  const handleTransferLineToDriverB = async () => {
+    if (isTransferringLine) return;
+
+    const confirmTransfer = window.confirm("هل تريد نقل هذا الخط إلى سائق آخر لفترة محددة؟");
+    if (!confirmTransfer) return;
+
+    setIsTransferringLine(true);
+    
+    try {
+      const fromDriverRef = doc(DB, "drivers", selectedDriver.id);
+      const toDriverRef = doc(DB, "drivers", switchDriverID);
+  
+      const [fromSnap, toSnap] = await Promise.all([
+        getDoc(fromDriverRef),
+        getDoc(toDriverRef)
+      ]);
+  
+      if (!fromSnap.exists() || !toSnap.exists()) throw new Error("Driver not found");
+  
+      const fromDriverData = fromSnap.data();
+      const toDriverData = toSnap.data();
+  
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+  
+      const startDate = new Date(switchLineStartDate);
+      startDate.setUTCHours(0, 0, 0, 0);
+  
+      const endDate = new Date(switchLineEndDate);
+      endDate.setUTCHours(0, 0, 0, 0);
+  
+      const startTimestamp = Timestamp.fromDate(startDate);
+      const endTimestamp = Timestamp.fromDate(endDate);
+  
+      const originalLine = fromDriverData.line?.[switchedLineIndex];
+      if (!originalLine) throw new Error("خط غير موجود");
+  
+      const batch = writeBatch(DB);
+  
+      // === Update Driver A
+      const updatedFromLines = [...fromDriverData.line];
+      updatedFromLines[switchedLineIndex] = {
+        ...originalLine,
+        desactive_periode: { start: startTimestamp, end: endTimestamp },
+        subs_driver: switchDriverID
+      };
+      batch.update(fromDriverRef, { line: updatedFromLines });
+  
+      const futureTransferredLine = {
+        ...originalLine,
+        active_periode: { start: startTimestamp, end: endTimestamp },
+        original_driver: selectedDriver.id
+      };
+
+      const isToday = +startDate.getTime() === +today.getTime();
+      const isFuture = startDate > today;
+      const isTodayAndFuture = isToday && endDate > today;
+  
+      // === Case 1: Handle TODAY
+      if (isToday || isTodayAndFuture) {
+        const yearMonthKey = `${today.getFullYear()}-${(today.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}`;
+        const dayKey = today.getDate().toString().padStart(2, "0");
+  
+        const daily = toDriverData.dailyTracking?.[yearMonthKey]?.[dayKey] || {};
+        const todayLines = daily.today_lines || [];
+  
+        const nextIndex =
+          todayLines.length > 0
+            ? Math.max(...todayLines.map((line) => line.line_index || 0)) + 1
+            : 1;
+  
+        const todayLine = {
+          ...futureTransferredLine,
+          line_index: nextIndex,
+          first_trip_finished: false,
+          second_trip_finished: false,
+          line_active: todayLines.length === 0 // activate if first
+        };
+  
+        const updatedTodayLines = [...todayLines, todayLine];
+  
+        const updatedTracking = {
+          ...toDriverData.dailyTracking,
+          [yearMonthKey]: {
+            ...(toDriverData.dailyTracking?.[yearMonthKey] || {}),
+            [dayKey]: {
+              ...daily,
+              today_lines: updatedTodayLines
+            }
+          }
+        };
+  
+        batch.update(toDriverRef, { dailyTracking: updatedTracking });
+
+        // 💡 If Driver B didn't start the trip yet (today_lines was empty), also push into his normal lines
+        if (!daily.today_lines || daily.today_lines.length === 0) {
+          const updatedToDriverLines = [...(toDriverData.line || []), futureTransferredLine];
+          batch.update(toDriverRef, { line: updatedToDriverLines });
+        }
+      }
+  
+      // === Case 2: Handle TOMORROW or FUTURE (startDate > today or span beyond today)
+      if (isFuture || isTodayAndFuture) {
+        const updatedToDriverLines = toDriverData.line || [];
+        updatedToDriverLines.push(futureTransferredLine);
+        batch.update(toDriverRef, { line: updatedToDriverLines });
+      }
+  
+      await batch.commit();
+      alert("✅ تم نقل الخط بنجاح!");
+    } catch (err) {
+      console.error("Transfer failed:", err);
+      alert("❌ خطأ أثناء نقل الخط");
+    } finally {
+      setSelectedLine(null)
+      setSwitchDriverID('')
+      setSwitchLineStartDate('')
+      setSwitchLineEndDate('')
+      setIsOpeningSwitchLineModal(false)
+      setIsTransferringLine(false)
+    }
+  };
+  
+
   // Delete an entire line
   const deleteLineHandler = async (lineIndex, driverId) => {
     if (isDeletingLine) return;
@@ -752,7 +872,6 @@ const  Drivers = () => {
               billEntry.end_date = todayISO;
               let startDate = billEntry.start_date ? new Date(billEntry.start_date) : new Date(year,month,1);
               const startDay = startDate.getDate();
-              const totalDays = getDaysInMonth(year, month);
               const usedDays = day - startDay + 1;
     
               // Calculate prorated driver commission
@@ -1093,13 +1212,24 @@ const  Drivers = () => {
                                     </div>
 
                                     {/* Submit Button */}
-                                    <button 
-                                      onClick={transferLineHandler}
-                                      className="assign-switch-line-button"
-                                    >
-                                      تأكيد
-                                    </button>
-
+                                    {isTransferringLine ? (
+                                      <div style={{ width:'100px',height:'30px',backgroundColor:'#955BFE',borderRadius:'7px',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                                        <ClipLoader
+                                          color={'#fff'}
+                                          loading={isTransferringLine}
+                                          size={13}
+                                          aria-label="Loading Spinner"
+                                          data-testid="loader"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <button 
+                                        onClick={handleTransferLineToDriverB}
+                                        className="assign-switch-line-button"
+                                      >
+                                        تأكيد
+                                      </button>
+                                    )}
                                   </div>
                                 </Modal>
                               </div>  
