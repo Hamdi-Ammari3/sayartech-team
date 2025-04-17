@@ -284,15 +284,15 @@ const  Drivers = () => {
               line_destination: lineCompany,
               line_destination_location: lineCompanyLocation
             }),
-        line_active:false,
-        line_index:null,
-        current_trip: "first",
-        first_trip_started: false,
-        first_trip_finished: false,
-        second_trip_started: false,
-        second_trip_finished: false,
-        started_the_line: null,
-        arrived_to_destination: null,
+        //line_active:false,
+        //line_index:null,
+        //current_trip: "first",
+        //first_trip_started: false,
+        //first_trip_finished: false,
+        //second_trip_started: false,
+        //second_trip_finished: false,
+        //started_the_line: null,
+        //arrived_to_destination: null,
       };
 
       // Fetch driver document
@@ -592,97 +592,91 @@ const  Drivers = () => {
     setSwitchLineEndDate(e.target.value);
   };
 
-  // Handle transfer Line
-  const transferLineHandler = async () => {
-    if (isTransferringLine) return;
-
-    const confirmTransfer = window.confirm("هل تريد نقل هذا الخط إلى سائق آخر لفترة محددة؟");
-    if (!confirmTransfer) return;
-
-    setIsTransferringLine(true);
-
-    try {
-      const fromDriverRef = doc(DB, "drivers", selectedDriver.id);
-      const toDriverRef = doc(DB, "drivers", switchDriverID);
-
-      const [fromDriverDoc, toDriverDoc] = await Promise.all([
-        getDoc(fromDriverRef),
-        getDoc(toDriverRef)
-      ])
-
-      if (!fromDriverDoc.exists() || !toDriverDoc.exists()) {
-        alert("السائق غير موجود");
-        return;
-      }
-
-      const fromDriverData = fromDriverDoc.data();
-      const toDriverData = toDriverDoc.data();
-      const currentLines = fromDriverData.line || [];
-
-      if (!currentLines[switchedLineIndex]) {
-        alert("الخط غير موجود");
-        return;
-      }
-
-      // Convert startDate & endDate to Firestore Timestamps (without time)
-      const startDate = new Date(switchLineStartDate);
-      startDate.setUTCHours(0, 0, 0, 0); // Reset time to midnight
-
-      const endDate = new Date(switchLineEndDate);
-      endDate.setUTCHours(0, 0, 0, 0); // Reset time to midnight
-
-      const startTimestamp = Timestamp.fromDate(startDate); // ✅ Firestore Timestamp
-      const endTimestamp = Timestamp.fromDate(endDate); // ✅ Firestore Timestamp
-
-      // Get the selected line and update it for the original driver
-      let updatedOriginalDriverLines = [...currentLines];
-
-      updatedOriginalDriverLines[switchedLineIndex] = {
-        ...currentLines[switchedLineIndex], // Keep existing data
-        desactive_periode: { start: startTimestamp, end: endTimestamp },
-        subs_driver: switchDriverID
-      };
-
-      // Prepare the updated line for the substitute driver
-      let updatedLineForNewDriver = { 
-        ...currentLines[switchedLineIndex], // Keep the original line details
-        active_periode: { start: startTimestamp, end: endTimestamp },
-        original_driver: selectedDriver.id
-      };
-
-      let updatedToDriverLines = toDriverData.line || [];
-      updatedToDriverLines.push(updatedLineForNewDriver);
-
-
-      // Use batch update for atomic operations
-      const batch = writeBatch(DB);
-
-      batch.update(fromDriverRef, {
-        line: updatedOriginalDriverLines
-      });
-
-      batch.update(toDriverRef, {
-        line: updatedToDriverLines
-      });
-
-      // Commit the batch
-      await batch.commit();
-
-      // Update UI state
-      setSelectedDriver((prevDriver) => ({
-        ...prevDriver,
-        line: updatedOriginalDriverLines
-      }));
-
-      alert("تم نقل الخط بنجاح إلى السائق البديل!");
-    } catch (error) {
-      console.error("Error transferring line:", error);
-      alert("خطأ أثناء نقل الخط. الرجاء المحاولة مرة أخرى");
-    } finally {
-      setIsTransferringLine(false);
-    }
+  // Reset riders inside the copied line status
+  const resetRidersForPhase = (originalRiders) => {
+    return originalRiders.map((rider) => ({
+      id: rider.id,
+      name: rider.name,
+      notification_token: rider.notification_token || null,
+      phone_number: rider.phone_number || null,
+      home_location: rider.home_location || null,
+      picked_up: false,
+      checked_in_front_of_school: false,
+      picked_from_school: false,
+      dropped_off: false,
+    }));
   };
 
+  // Remove transfered line from original driver
+  const removeTransferredLineFromOriginalDriver = (originalTracking, lineIdToRemove) => {
+    const lines = originalTracking.today_lines || [];
+
+    // 1. Remove the line
+    const updatedLines = lines.filter((line) => line.id !== lineIdToRemove);
+    
+    if (updatedLines.length === 0) {
+      // Mark journey as completed
+      return {
+        ...originalTracking,
+        today_lines: [],
+        complete_today_journey: true,
+      };
+    }
+    
+    // 2. Re-index
+    const reindexedLines = updatedLines.map((line, index) => ({
+      ...line,
+      line_index: index + 1,
+    }));
+
+    // 3. Determine current trip phase (first or second)
+    const allFirstTripsFinished = reindexedLines.every(
+      (line) => line.first_trip_started && line.first_trip_finished
+    );
+    const currentPhase = allFirstTripsFinished ? "second" : "first";
+
+    // 4. Find next line to activate based on phase and circular progression
+    let nextActiveIndex = -1;
+
+    for (let i = 0; i < reindexedLines.length; i++) {
+      const line = reindexedLines[i];
+
+      const isIncompleteTrip =
+        currentPhase === "first" 
+          ? !line.first_trip_started || !line.first_trip_finished
+          : !line.second_trip_started || !line.second_trip_finished;
+
+      if (isIncompleteTrip) {
+        nextActiveIndex = i;
+        break;
+      }
+    }
+
+    // 5. If none left to activate, all lines done for this phase → journey complete
+    if (nextActiveIndex === -1) {
+      return {
+        ...originalTracking,
+        today_lines: reindexedLines.map((line) => ({
+          ...line,
+          line_active: false,
+        })),
+        complete_today_journey: true,
+      };
+    }
+
+    // 6. Activate next active line
+    const finalLines = reindexedLines.map((line, index) => ({
+      ...line,
+      line_active: index === nextActiveIndex,
+    }));
+    
+    return {
+      ...originalTracking,
+      today_lines: finalLines,
+    };
+  };
+    
+  // Transfer line to another driver
   const handleTransferLineToDriverB = async () => {
     if (isTransferringLine) return;
 
@@ -716,19 +710,37 @@ const  Drivers = () => {
   
       const startTimestamp = Timestamp.fromDate(startDate);
       const endTimestamp = Timestamp.fromDate(endDate);
-  
-      const originalLine = fromDriverData.line?.[switchedLineIndex];
+
+      const isToday = +startDate.getTime() === +today.getTime();
+      const isFuture = startDate > today;
+      const isTodayAndFuture = isToday && endDate > today;
+
+      const yearMonthKey = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, "0")}`;
+      const dayKey = today.getDate().toString().padStart(2, "0");
+
+      const originalLineId = fromDriverData.line?.[switchedLineIndex]?.id;
+      if (!originalLineId) throw new Error("خط غير موجود");
+
+      const fromDaily = fromDriverData.dailyTracking?.[yearMonthKey]?.[dayKey];
+      const toDaily = toDriverData.dailyTracking?.[yearMonthKey]?.[dayKey];
+      const fromTodayLine = fromDaily?.today_lines?.find((l) => l.id === originalLineId);
+      const toDriverStarted = toDaily?.start_today_journey === true;
+
+      // ✅ Smart selection of originalLine based on trip context
+      const originalLine = (isToday && fromTodayLine && toDriverStarted)
+      ? fromTodayLine
+      : fromDriverData.line?.find((l) => l.id === originalLineId);
+
       if (!originalLine) throw new Error("خط غير موجود");
   
       const batch = writeBatch(DB);
   
-      // === Update Driver A
-      const updatedFromLines = [...fromDriverData.line];
-      updatedFromLines[switchedLineIndex] = {
-        ...originalLine,
-        desactive_periode: { start: startTimestamp, end: endTimestamp },
-        subs_driver: switchDriverID
-      };
+      // === Update Driver A's line list
+      const updatedFromLines = fromDriverData.line.map((line) =>
+        line.id === originalLineId
+          ? { ...line, desactive_periode: { start: startTimestamp, end: endTimestamp }, subs_driver: switchDriverID }
+          : line
+      );
       batch.update(fromDriverRef, { line: updatedFromLines });
   
       const futureTransferredLine = {
@@ -737,33 +749,32 @@ const  Drivers = () => {
         original_driver: selectedDriver.id
       };
 
-      const isToday = +startDate.getTime() === +today.getTime();
-      const isFuture = startDate > today;
-      const isTodayAndFuture = isToday && endDate > today;
-  
       // === Case 1: Handle TODAY
       if (isToday || isTodayAndFuture) {
-        const yearMonthKey = `${today.getFullYear()}-${(today.getMonth() + 1)
-          .toString()
-          .padStart(2, "0")}`;
-        const dayKey = today.getDate().toString().padStart(2, "0");
-  
-        const daily = toDriverData.dailyTracking?.[yearMonthKey]?.[dayKey] || {};
+        const daily = toDaily || {};
         const todayLines = daily.today_lines || [];
   
-        const nextIndex =
-          todayLines.length > 0
-            ? Math.max(...todayLines.map((line) => line.line_index || 0)) + 1
-            : 1;
-  
+        const nextIndex = todayLines.length > 0 ? Math.max(...todayLines.map((line) => line.line_index || 0)) + 1 : 1;
+
+        // === Check if the line status doesn't exist for today in original driver's tracking
+        const foundInOriginalTracking = fromTodayLine;
+        const riders = resetRidersForPhase(originalLine.riders || []);
+
         const todayLine = {
-          ...futureTransferredLine,
+          id: originalLine.id,
+          lineName: originalLine.lineName,
+          line_destination: originalLine.line_destination,
+          line_destination_location: originalLine.line_destination_location,
           line_index: nextIndex,
+          line_active: todayLines.length === 0,
+          current_trip: "first",
+          first_trip_started: false,
           first_trip_finished: false,
+          second_trip_started: false,
           second_trip_finished: false,
-          line_active: todayLines.length === 0 // activate if first
-        };
-  
+          riders
+        }
+    
         const updatedTodayLines = [...todayLines, todayLine];
   
         const updatedTracking = {
@@ -779,9 +790,29 @@ const  Drivers = () => {
   
         batch.update(toDriverRef, { dailyTracking: updatedTracking });
 
+        // ✅ Remove from original driver dailyTracking
+        if (foundInOriginalTracking) {
+          const cleanedOriginalTracking = removeTransferredLineFromOriginalDriver(
+            fromDaily,
+            originalLine.id
+          )
+
+          const cleanedDailyTracking = {
+            ...fromDriverData.dailyTracking,
+            [yearMonthKey]: {
+              ...(fromDriverData.dailyTracking?.[yearMonthKey] || {}),
+              [dayKey]: cleanedOriginalTracking,
+            },
+          }
+
+          batch.update(fromDriverRef, { dailyTracking: cleanedDailyTracking })
+        }
+
         // 💡 If Driver B didn't start the trip yet (today_lines was empty), also push into his normal lines
-        if (!daily.today_lines || daily.today_lines.length === 0) {
-          const updatedToDriverLines = [...(toDriverData.line || []), futureTransferredLine];
+        const hasStartedTrip = daily.start_today_journey === true;
+        if (!hasStartedTrip) {
+          const updatedToDriverLines = toDriverData.line || [];
+          updatedToDriverLines.push(futureTransferredLine);
           batch.update(toDriverRef, { line: updatedToDriverLines });
         }
       }
@@ -808,7 +839,6 @@ const  Drivers = () => {
     }
   };
   
-
   // Delete an entire line
   const deleteLineHandler = async (lineIndex, driverId) => {
     if (isDeletingLine) return;

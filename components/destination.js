@@ -431,6 +431,11 @@ const Destination = () => {
             onCancel={closeCompanyInfoModal}
             centered
             footer={null}
+            styles={{
+              mask: { backgroundColor: 'rgba(0, 0, 0, 0.01)' },
+              wrapper: { backgroundColor: 'rgba(0, 0, 0, 0.01)' },
+              content:{boxShadow:'none'}
+            }}
           >
             <div className='school-info-modal'>
               <p>{selectedCompany?.id}</p>

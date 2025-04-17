@@ -10,7 +10,7 @@ const cairo = Cairo({
 })
 
 export const metadata = {
-  title: "Sayartech",
+  title: "SAFE - سيف",
   description: "Your kids journey to school is our mission",
 };
 

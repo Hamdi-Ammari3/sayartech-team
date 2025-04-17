@@ -11,51 +11,50 @@ const TrackingMap = () => {
     const [driverName,setDriverName] = useState('')
     const [selectedDriver,setSelectedDriver] = useState(null)
     const [driverLocation, setDriverLocation] = useState(null)
-    const [todayDate, setTodayDate] = useState("")
     const [activeLines, setActiveLines] = useState([])
     const [selectedLine, setSelectedLine] = useState(null)
     const [selectedRider, setSelectedRider] = useState(null)
     const [selectedMarker, setSelectedMarker] = useState(null)
+    const [journeyStarted, setJourneyStarted] = useState(true)
+    const [trackingState,setTrackingState] = useState(null)
     
-    // Get today's date and dayIndex
     useEffect(() => {
-        const now = new Date();
-        const options = { weekday: "long", day: "2-digit", month: "long", year: "numeric" };
-        setTodayDate(now.toLocaleDateString("ar-IQ", options));
-    
-        const todayIndex = now.getDay(); // Sunday = 0, Monday = 1, etc.
+        const iraqTime = new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" });
+        const [month, day, year] = iraqTime.split(/[/, ]/);
+        const iraqDate = new Date(`${year}-${month}-${day}T00:00:00`);
+        const todayIndex = iraqDate.getDay(); // 0 = Sunday
     
         if (selectedDriver) {
-            // Filter only today's active lines
-            const filteredLines = selectedDriver.line?.filter(line => {
-                const todaySchedule = line.lineTimeTable?.find(day => day.dayIndex === todayIndex && day.active);
-                return !!todaySchedule;
-            }).map(line => {
-                const todaySchedule = line.lineTimeTable.find(day => day.dayIndex === todayIndex);
-                const startTime = todaySchedule?.startTime?.toDate?.(); // Handle Firestore timestamp
+            const tracking = selectedDriver.dailyTracking?.[`${year}-${month.padStart(2, "0")}`]?.[day.padStart(2, "0")];
+            setTrackingState(tracking)
+            if (!tracking || !tracking.today_lines) {
+                setActiveLines([]);
+                setSelectedLine(null);
+                setJourneyStarted(false);
+                return;
+            }
+    
+            // Attach start time from the original line definition
+            const enrichedLines = tracking.today_lines.map(line => {
+                const baseLine = selectedDriver.line?.find(l => l.id === line.id);
+                const todaySchedule = baseLine?.lineTimeTable?.find(day => day.dayIndex === todayIndex);
+    
+                const startTime = todaySchedule?.startTime?.toDate?.();
+                const formattedStartTime = startTime 
+                    ? `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`
+                    : null;
     
                 return {
                     ...line,
-                    startTime: startTime 
-                        ? `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`
-                        : null,
-                    startTimeValue: startTime ? startTime.getHours() * 60 + startTime.getMinutes() : Infinity // Convert to minutes for sorting
+                    startTime: formattedStartTime,
+                    startTimeValue: startTime ? startTime.getHours() * 60 + startTime.getMinutes() : Infinity
                 };
             });
     
-            // Sort by start time (earliest first)
-            const sortedLines = filteredLines.sort((a, b) => a.startTimeValue - b.startTimeValue);
-    
-            setActiveLines(sortedLines || [])
-
-            // Auto-select the first line if available
-            if (sortedLines.length === 1) {
-                setSelectedLine(sortedLines[0]);
-            } else if (sortedLines.length > 1) {
-                setSelectedLine(sortedLines[0]); // Select the earliest one
-            } else {
-                setSelectedLine(null);
-            }
+            const sortedLines = enrichedLines.sort((a, b) => a.startTimeValue - b.startTimeValue);
+            setActiveLines(sortedLines);
+            setSelectedLine(sortedLines[0] || null);
+            setJourneyStarted(true);
         }
     }, [selectedDriver]);
     
@@ -88,7 +87,7 @@ const TrackingMap = () => {
             setDriverLocation(null);
         }
         
-    }, [driverName, drivers]);
+    }, [driverName, selectedDriver, drivers]);
 
     // Set driver
     const setDriverNameChange = (e) => {
@@ -97,7 +96,6 @@ const TrackingMap = () => {
     }
 
     // Select line
-    // Handle line selection
     const handleLineSelect = (line) => {
         setSelectedLine(line)
         setSelectedRider(null)
@@ -114,43 +112,23 @@ const TrackingMap = () => {
         const checkedInCount = riders.filter(rider => rider.checked_in_front_of_school).length;
         const droppedOffCount = riders.filter(rider => rider.dropped_off).length;
 
-        if (first_trip_started === true && 
-            first_trip_finished === false &&
-            second_trip_started === false &&
-            second_trip_finished === false
+        if (first_trip_started && !first_trip_finished) {
+            return pickedUpCount === totalRiders
+                ? "في اتجاه المدرسة"
+                : `رحلة الذهاب بدأت - ${pickedUpCount}/${totalRiders}`;
+        }
 
-        ) return `رحلة الذهاب بدأت - ${totalRiders}/${pickedUpCount}`;
-
-        if (first_trip_started === true && 
-            first_trip_finished === false &&
-            second_trip_started === false &&
-            second_trip_finished === false &&
-            pickedUpCount === totalRiders
-        
-        ) return "في اتجاه المدرسة";
-
-        if (first_trip_started === true && 
-            first_trip_finished === true &&
-            second_trip_started === false &&
-            second_trip_finished === false
-        
-        ) return "رحلة الذهاب انتهت";
-
-        if (first_trip_started === true && 
-            first_trip_finished === true &&
-            second_trip_started === true &&
-            second_trip_finished === false
-        
-        ) return `رحلة العودة بدأت - ${checkedInCount}/${droppedOffCount}`;
-        
-        if (first_trip_started === true && 
-            first_trip_finished === true &&
-            second_trip_started === true &&
-            second_trip_finished === true
-        
-        ) return "رحلة العودة انتهت";
-
+        if (first_trip_finished && !second_trip_started && !second_trip_finished)
+            return "رحلة الذهاب انتهت";
+    
+        if (second_trip_started && !second_trip_finished)
+            return `رحلة العودة بدأت - ${droppedOffCount}/${checkedInCount}`;
+    
+        if (second_trip_finished)
+            return "رحلة العودة انتهت";
+    
         return "الرحلة لم تبدأ بعد";
+
     };
 
     // Select rider
@@ -175,43 +153,35 @@ const TrackingMap = () => {
     const getRiderStatus = () => {
         if (!selectedRider || !selectedLine) return "";
 
-        const { first_trip_started, first_trip_finished, second_trip_started, second_trip_finished } = selectedLine;
+        if (!trackingState?.start_the_journey) return ''; // no journey
 
-        if(selectedRider.picked_up === false) return "home"
+        const allLines = [...(trackingState.today_lines || []), ...(trackingState.finished_lines || [])];
+        const currentLine = allLines.find(line => line.id === selectedLine.id);
+        if (!currentLine) return '';
+
+        const rider = currentLine.riders.find(r => r.id === selectedRider?.id);
+        if (!rider) return '';
+
+        const { first_trip_started, 
+                first_trip_finished, 
+                second_trip_started, 
+                second_trip_finished 
+            } = selectedLine;
+
+        if (rider.picked_up === false) return 'home';
+
+        if (first_trip_started && !first_trip_finished && rider.picked_up) return 'to school';
+          
+        if (first_trip_finished && !second_trip_started && rider.picked_up) return 'school';
+
+        if (
+            second_trip_started &&
+            !second_trip_finished &&
+            rider.picked_up &&
+            rider.checked_in_front_of_school
+          ) return 'to home';
         
-        if (first_trip_started === true && 
-            first_trip_finished === false &&
-            second_trip_started === false &&
-            second_trip_finished === false &&
-            selectedRider.picked_up === true
-
-        ) return "to school"
-
-        if (first_trip_started === true && 
-            first_trip_finished === true &&
-            second_trip_started === false &&
-            second_trip_finished === false &&
-            selectedRider.picked_up === true
-
-        ) return "school"
-
-        if (first_trip_started === true && 
-            first_trip_finished === true &&
-            second_trip_started === true &&
-            second_trip_finished === false &&
-            selectedRider.picked_up === true &&
-            selectedRider.checked_in_front_of_school === true
-
-        ) return "to home"
-
-        if (first_trip_started === true && 
-            first_trip_finished === true &&
-            second_trip_started === true &&
-            second_trip_finished === false &&
-            selectedRider.picked_up === true &&
-            selectedRider.dropped_off === true
-
-        ) return "home"
+        if (rider.dropped_off) return 'home';
         
         return "home";
     };
@@ -239,7 +209,7 @@ const TrackingMap = () => {
                 ));
             } else if (riderStatus === 'school' || riderStatus === 'to school') {
                 bounds.extend(new window.google.maps.LatLng(
-                    selectedRider.destination_location.latitude, selectedRider.destination_location.longitude
+                    selectedLine.line_destination_location.latitude, selectedLine.line_destination_location.longitude
                 ));
             }
         } else {
@@ -335,12 +305,12 @@ const TrackingMap = () => {
                                         onClick={() => handleLineSelect(line)}
                                     >
                                         <p style={{fontSize:'15px'}}>
-                                            {line.lineName} - {line.startTime || 'غير متوفر'} 
+                                            {line.lineName}
                                         </p>
                                     </div>                                   
                                 ))
                             ) : (
-                                <p>لا يوجد خطوط نشطة اليوم</p>
+                                <p className='in-route'>لا يوجد خطوط نشطة</p>
                             )}
                         </div>
                        )}
@@ -378,13 +348,18 @@ const TrackingMap = () => {
                             <div className='tracking_driver_main_no_lines'>
                                 <p>حدد السائق</p>
                             </div>
+                        ) : 
+                        !journeyStarted ? (
+                            <div className='tracking_driver_main_no_lines'>
+                              <p className='driver-history-container-std-status'>السائق لم يبدأ رحلاته اليوم</p> {/* Driver selected, but hasn't started today */}
+                            </div>
                         ) : (
                             <div className='tracking_driver_main_map'>
                                 <GoogleMap
                                     mapContainerStyle={{ width: "100%", height: "100%" }}
                                     center={driverLocation || {
-                                        lat: selectedDriver.driver_home_location.coords.latitude,
-                                        lng: selectedDriver.driver_home_location.coords.longitude
+                                        lat: selectedDriver?.driver_home_location?.coords?.latitude,
+                                        lng: selectedDriver?.driver_home_location?.coords?.longitude
                                     }}
                                     zoom={14}
                                     onLoad={handleMapLoad}
@@ -410,8 +385,8 @@ const TrackingMap = () => {
                                                     <Marker
                                                         key={selectedRider.id}
                                                         position={{
-                                                            lat: selectedRider.home_location.latitude,
-                                                            lng: selectedRider.home_location.longitude
+                                                            lat: selectedRider?.home_location?.latitude,
+                                                            lng: selectedRider?.home_location?.longitude
                                                         }}
                                                         icon={{
                                                             url: homeIcon,
@@ -424,8 +399,8 @@ const TrackingMap = () => {
                                                     <Marker
                                                         key={selectedRider.id}
                                                         position={{
-                                                            lat: selectedRider.destination_location.latitude,
-                                                            lng: selectedRider.destination_location.longitude
+                                                            lat: selectedLine?.line_destination_location?.latitude,
+                                                            lng: selectedLine?.line_destination_location?.longitude
                                                         }}
                                                         icon={{
                                                             url: schoolIcon,
@@ -441,8 +416,8 @@ const TrackingMap = () => {
                                                 <Marker
                                                     key={index}
                                                     position={{
-                                                        lat: rider.home_location.latitude,
-                                                        lng: rider.home_location.longitude
+                                                        lat: rider?.home_location?.latitude,
+                                                        lng: rider?.home_location?.longitude
                                                     }}
                                                     icon={{
                                                         url: homeIcon,
