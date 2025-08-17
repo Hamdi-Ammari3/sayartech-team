@@ -351,7 +351,7 @@ const TrackingMap = () => {
                         ) : 
                         !journeyStarted ? (
                             <div className='tracking_driver_main_no_lines'>
-                              <p className='driver-history-container-std-status'>السائق لم يبدأ رحلاته اليوم</p> {/* Driver selected, but hasn't started today */}
+                                <p className='driver-history-container-std-status'>السائق لم يبدأ رحلاته اليوم</p> {/* Driver selected, but hasn't started today */}
                             </div>
                         ) : (
                             <div className='tracking_driver_main_map'>

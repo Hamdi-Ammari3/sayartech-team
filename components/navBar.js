@@ -30,7 +30,7 @@ const Navbar = () => {
   return (
     <div className='navbar'>
         <div className='navbar_logo_div'>
-            <h2>Sayartech</h2>
+            <h2>Safe - سيف</h2>
         </div>
         <div className='navbar_user_box'>
           <h5>{userName}</h5>

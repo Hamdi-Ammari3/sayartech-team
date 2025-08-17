@@ -7,11 +7,10 @@ const GlobalStateContext = createContext();
 
 const initialState = {
   riders:[],
-  students: [],
-  employees: [],
+  lines: [],
+  intercityTrips: [],
   drivers: [],
-  schools: [],
-  companies:[],
+  destinations:[],
   emails: [],
   privateCarRequests: [],
   unseenEmailsCount: 0,
@@ -42,17 +41,12 @@ const globalStateReducer = (state, action) => {
 export const GlobalStateProvider = ({ children }) => {
   const [state, dispatch] = useReducer(globalStateReducer, initialState);
 
-  useEffect(() => {
-    
+  useEffect(() => {    
     const unsubscribeRiders = onSnapshot(collection(DB, 'riders'), (snapshot) => {
       const riders = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-
-      const students = riders.filter((rider) => rider.rider_type === 'student');
-      const employees = riders.filter((rider) => rider.rider_type === 'employee');
-
       dispatch({
         type: 'FETCH_SUCCESS',
-        payload: { students,employees,riders },
+        payload: { riders },
       });
     });
 
@@ -64,19 +58,27 @@ export const GlobalStateProvider = ({ children }) => {
       });
     });
 
-    const unsubscribeSchools = onSnapshot(collection(DB, 'schools'), (snapshot) => {
-      const schools = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const unsubscribeLines = onSnapshot(collection(DB, 'lines'), (snapshot) => {
+      const lines = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       dispatch({
         type: 'FETCH_SUCCESS',
-        payload: { schools },
+        payload: { lines },
       });
     });
 
-    const unsubscribeCompanies = onSnapshot(collection(DB, 'companies'), (snapshot) => {
-      const companies = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const unsubscribeTrips = onSnapshot(collection(DB, 'intercityTrips'), (snapshot) => {
+      const intercityTrips = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       dispatch({
         type: 'FETCH_SUCCESS',
-        payload: { companies },
+        payload: { intercityTrips },
+      });
+    });
+
+    const unsubscribeDestinations = onSnapshot(collection(DB, 'institutions'), (snapshot) => {
+      const destinations = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      dispatch({
+        type: 'FETCH_SUCCESS',
+        payload: { destinations },
       });
     });
 
@@ -102,8 +104,9 @@ export const GlobalStateProvider = ({ children }) => {
     return () => {
       unsubscribeRiders();
       unsubscribeDrivers();
-      unsubscribeSchools();
-      unsubscribeCompanies
+      unsubscribeLines();
+      unsubscribeTrips();
+      unsubscribeDestinations();
       unsubscribeEmails();
       unsubscribePrivateCarRequests();
     };

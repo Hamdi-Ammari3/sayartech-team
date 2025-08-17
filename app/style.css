@@ -7,7 +7,6 @@
     margin: 0;
     padding: 0;
 }
-
 .login-container{
     height: 100vh;
     display: flex;
@@ -229,6 +228,7 @@
     height:100px;
     margin-top: 30px;
     display: flex;
+    flex-direction: row-reverse;
     justify-content: space-around;
     align-items: center;
 }
@@ -246,7 +246,7 @@
     box-shadow: -10px 13px 5px -14px rgba(0,0,0,0.5);
 }
 .main_section_stat_item_icon{
-    font-size: 36px;
+    font-size: 30px;
     font-weight: 400;
     color: #fff;
 }
@@ -315,7 +315,7 @@
     justify-content: center;
 }
 .white_card-section-container{
-  width:70vw;
+  width:73vw;
   height:80vh;
   margin-top: 10px;
   background-color: #fff;
@@ -325,19 +325,21 @@
   overflow-x: hidden;
 }
 .students-section-inner-titles{
-    height: 50px;
-    display: flex;
-    flex-direction: row-reverse;
-    align-items: center;
-    justify-content: center;
-    border-bottom: 1px solid #f1f1f1;
+  width:73vw;
+  height: 50px;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f1f1;
 }
 .students-section-inner-title{
-    height: 35px;
-    text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  width: 350px;
+  height: 35px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .add_new_destination_box{
   height: 50px;
@@ -362,11 +364,12 @@
   height: 150px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  gap: 20px;
 }
 .add_new_company_info_modal_form > input{
-  width: 250px;
+  width: 300px;
   height: 35px;
   text-align: center;
   font-size: 16px;
@@ -389,9 +392,21 @@
 .toggle-between-school-company-container{
   height: 40px;
   display: flex;
+  flex-direction: row-reverse;
   align-items: center;
   justify-content: space-around;
   border-bottom: 1px solid #f1f1f1;
+}
+.new-line-toggle-between-school-company-container{
+  width: 370px;
+  height: 40px;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: space-between;
+}
+.new-line-toggle-between-school-company-container > div {
+  width: 120px;
 }
 .toggle-between-school-company-btn{
   width: 120px;
@@ -412,18 +427,19 @@
   font-weight: bold;
 }
 .line-calender-box{
-  height: 75px;
+  height: 50px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row-reverse;
   align-items: center;
-  justify-content: space-around;
+  justify-content: center;
+  gap: 20px;
   border-bottom: 1px solid #f1f1f1;
 }
 .line-calender-box-dayDate,.add_new_destination_btn{
   width: 220px;
   height: 30px;
   text-align: center;
-  background-color: #955BFE;
+  background-color: #16B1FF;
   box-shadow: -10px 10px 3px -14px rgba(0,0,0,0.5);
   border-radius: 7px;
   color: white;
@@ -488,18 +504,108 @@
   justify-content: center;
   align-items: center;
 }
-.filter-item{
-  position: relative;
+.connect-student-driver-header-selectedLine{
+  width: 400px;
+  height: 6vh;
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-between;
   align-items: center;
 }
-.filter-item > input,.filter-item > select,.tracking_driver_header_select > select {
+.connect-student-driver-header-selectedLine-name{
+  width: 200px;
+  height: 30px;
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-around;
+  align-items: center;
+  background-color: #F4F5FA;
+  border: 1px solid #f1f1f1;
+  border-radius: 15px;
+}
+.connect-student-driver-header-selectedLine-name > button {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+}
+.connect-student-driver-header-selectedLine-riders-count{
+  width: 200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+.user_balance_header{
+  width: 73vw;
+  height: 10vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.filter-item{
+  width: 350px;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.filter-item > input {
+  width: 250px;
+  height: 32px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  border: 1px solid #f1f1f1;
+  border-radius: 10px;
+}
+.filter-item > button {
+  width: 80px;
+  height: 30px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  border-radius: 7px;
+  background-color: #955BFE;
+  color: #fff;
+  cursor: pointer;
+}
+.user_balance_main{
+  width: 73vw;
+  height: 60vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.user_balance_main_user_info{
+  width: 500px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.user_balance_main_user_info > div {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+}
+.user_balance_main_user_info > h5 {
+  font-weight: 400;
+}
+.tracking_driver_header_select > select {
+  margin-inline: 10px;
   width: 250px !important;
   height: 30px !important;
 }
-.filter-item > select,.tracking_driver_header_select > select {
-  margin-inline: 10px;
-}
-.filter-item > button,.popup-marker-info > button {
+.popup-marker-info > button {
   width: 80px !important;
   height: 30px !important;
 }
@@ -653,13 +759,6 @@
   align-items: flex-start;
   justify-content: center;
 }
-.tracking_driver_main_map{
-  width: 52vw;
-  height: 73vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 .connect-student-driver-main{
   height: 74vh;
   width: 80vw;
@@ -694,17 +793,8 @@
   font-size: 14px;
   font-weight: bold;
 }
-.students-section-inner-title:nth-child(1) {
-  flex: 4;
-}
-.students-section-inner-title:nth-child(2) {
-  flex: 4;
-}
-.students-section-inner-title:nth-child(3) {
-  flex: 3;
-}
-.students-section-inner-title > input, .filter-item > input {
-  width: 200px;
+.students-section-inner-title > input {
+  width: 230px;
   height: 30px;
   text-align: center;
   font-size: 16px;
@@ -713,7 +803,6 @@
   border-radius: 10px;
 }
 .students-section-inner-title > select, 
-.filter-item > select,
 .tracking_driver_header_select > select,
 .swicth_line_driver_select > select
 {
@@ -735,6 +824,19 @@
 }
 .swicth_line_driver_select > select {
   width: 250px;
+}
+.switch-line-mode-toggle{
+  width: 300px;
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  align-items: center;
+}
+.switch-line-mode-toggle > div{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
 }
 .swicth_line_periode_date{
   width: 250px;
@@ -766,18 +868,14 @@
   color: #fff;
   cursor: pointer;
 }
-.students-section-inner-title:nth-child(2) > select {
-  width: 280px;
-}
-.students-section-inner-title:nth-child(3) > select {
-  width: 150px;
+.students-section-inner-title> select {
+  width: 130px;
 }
 .students-section-inner-title > input:focus,
 .students-section-inner-title > select:focus,
 .adding_new_line_form > select:focus,
 .add_new_company_info_modal_form > input,
 .filter-item > input:focus,
-.filter-item > select:focus,
 .tracking_driver_header_select > select:focus,
 .tracking_driver_main_header_select > select:focus,
 .swicth_line_driver_select > select:focus
@@ -785,8 +883,8 @@
   outline: none;
 }
 .driver-rating-box{
-  width: 150px;
-  height: 27px;
+  width: 200px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -820,6 +918,14 @@
   flex-direction: column;
   align-items: center;
 }
+.new-line-container{
+  width: 70vw;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  border-bottom: 1px solid #f1f1f1;
+}
 .single-item-daily-status-header{
   display: flex;
   flex-direction: row-reverse;
@@ -827,7 +933,7 @@
   align-items: center;
 }
 .single-item,.daily-status-line-single-item{
-  width:69vw;
+  width:73vw;
   height: 40px;
   display: flex;
   flex-direction: row-reverse;
@@ -854,43 +960,19 @@
   font-weight: 400;
   text-align: center;
 }
-.single-item > div:nth-of-type(1),.daily-status-line-single-item > div:nth-of-type(1){
-  flex: 4;
+.single-item > div {
+  width: 350px;
 }
-.single-item > div:nth-of-type(2),.daily-status-line-single-item > div:nth-of-type(2){
-  flex: 4;
-}
-.single-item > div:nth-of-type(3){
-  flex: 3;
-}
-.student-has-driver,.high-rating,.student-at-home {
+.student-has-driver,.trip-finished{
   color: #56CA00;
-  padding: 5px 0;
-  border-radius: 5px;
   font-weight: 700!important;
 }
-.student-without-driver,.in-route,.medium-rating {
+.student-without-driver,.trip-not-started {
   color: #FFB400;
-  padding: 5px 0;
-  border-radius: 5px;
   font-weight: 700!important;
 }
-.absent,.low-rating {
-  color: #FF4C51;
-  padding: 5px 0;
-  border-radius: 5px;
-  font-weight: 700!important;
-}
-.app-only{
-  color: #56CA00;
-  padding: 5px 0;
-  border-radius: 5px;
-  font-weight: 700!important;
-}
-.app-and-drivers{
-  color: #FFB400;
-  padding: 5px 0;
-  border-radius: 5px;
+.trip-started{
+  color: #295f98ff;
   font-weight: 700!important;
 }
 .not-seen{
@@ -996,6 +1078,65 @@
     justify-content: space-around;
     align-items: center;
     overflow: auto;
+  }
+  .line-manage-buttons{
+    height: 10vh;
+    width: 100%;
+    display:flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;;
+  }
+  .item-detailed-data-main-firstBox-line-students{
+    height: 63vh;
+    width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-inline: 10px;
+  }
+  .line-student-dropdown-open{
+    width: 100%;
+    height: 63vh;
+    padding-inline: 10px;
+  }
+  .line-student-dropdown-open-riders-list{
+    width: 100%;
+    height: 39vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .line-dropdown-item {
+    width: 100%;
+    min-height: 60px;
+    margin-bottom: 2px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid #fff;
+    background-color: #F4F5FA;
+  }
+  .trip-dropdown-item{
+    width: 100%;
+    height: 40px;
+    margin-bottom: 2px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border-top: 1px solid #fff;
+    background-color: #F4F5FA;
+  }
+  .line-dropdown-item > div > div{
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
   }
   .firstBox-image-box{
     width: 100%;
@@ -1124,6 +1265,19 @@
     align-items: center;
     justify-content: center;
   }
+  .tracking_driver_main_map{
+    height: 70vh;
+    width: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .item-detailed-data-main-second-box-line{
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
   .assinged-item-box-title{
     width: 200px;
     height: 7vh;
@@ -1136,28 +1290,44 @@
     font-weight: bold;
   }
   .assinged-item-box-main{
-    width: 80%;
-    height: 50vh;
+    width: 90%;
+    height: 100%;
     margin-top: 15px;
   }
+  .student-dropdown student-dropdown-open{
+    width: 80%;
+    height: 50vh;
+  }
   .assinged-item-box-item{
+    width: 100%;
+    height: 45px;
+    margin-bottom: 5px;
+    border: 1px solid #f1f1f1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .assinged-item-box-item-buttons{
+    width: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .assinged-item-box-item-driver-line-info{
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+  }
+  .assinged-line-box-item{
     width: 100%;
     height: 40px;
     margin-bottom: 5px;
     border: 1px solid #f1f1f1;
     display: flex;
-    justify-content: space-around;
-    align-items: center;
-  }
-  .assinged-item-box-item > div {
-    flex: 1;
-    display: flex;
-    align-items: center;
     justify-content: center;
-  }
-  .assinged-item-box-item > h5 {
-    cursor: pointer;
-    text-decoration: "none";
+    align-items: center;
   }
   .student-dropdown {
     width: 100%;
@@ -1181,7 +1351,8 @@
     display: flex;
     flex-direction: row-reverse;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    gap:10px;
     border-top: 1px solid #fff;
   }
   .no-students {
@@ -1227,6 +1398,18 @@
     justify-content: space-between;
     align-items: center;
   }
+  .line-driver-box{
+    width: 77%;
+    height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-top: 1px solid #fff;
+    border-radius: 10px;
+    background-color: #F4F5FA;
+    padding: 10px;
+  }
   .line-time-table-container{
     height: 100px;
     display: flex;
@@ -1238,22 +1421,37 @@
     align-items: center;
     justify-content: center;
   }
-  .line-time-table {
-    margin-top: 15px;
-  }
   .line-time-table table {
     width: 100%;
     border-collapse: collapse;
   }
   .line-time-table th, .line-time-table td {
-    width: 150px;
+    width: 100px;
     border: 1px solid #ddd;
-    padding: 8px;
+    padding: 6px;
     margin-inline: 1px;
     text-align: center;
   }
   .line-time-table th {
     background-color: #f4f4f4;
+  }
+  .confirm-edit-time-table{
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
+  }
+  .confirm-edit-time-table > button{
+    width: 80px;
+    height: 30px;
+    text-align: center;
+    background-color: #955BFE;
+    color: #fff;
+    border: none;
+    border-radius: 15px;
+    font-size: 16px;
+    cursor: pointer;
   }
   .private_car_request_form_date_day_input {
     width: 60px;
@@ -1314,7 +1512,7 @@
   .private_car_request_form_date_day_input:focus {
      outline: none;
   }
-  .adding_new_line_main > button, .filter-item > button, .popup-marker-info > button {
+  .adding_new_line_main > button, .popup-marker-info > button {
     width: 120px;
     height: 35px;
     text-align: center;
@@ -1431,7 +1629,7 @@
     align-items: center;
     overflow: auto;
   }
-  .student-detailed-data-main-firstBox div{
+  .student-detailed-data-main-firstBox > div{
     display: flex;
     flex-direction: row-reverse;
     justify-content: center;
@@ -1730,6 +1928,8 @@
   }
   .main_section_stat_items{
     width:90%;
+    display: flex;
+    flex-direction: row;
     justify-content: space-between;
   }
   .white_card-section-container{

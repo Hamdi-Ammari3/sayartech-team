@@ -1,28 +1,28 @@
 import React from 'react'
 import { useGlobalState } from '../globalState'
-import { PiStudentLight } from "react-icons/pi";
 import { PiVanLight } from "react-icons/pi"
-import { LuSchool2 } from "react-icons/lu"
-import { HiOutlineBuildingOffice2 } from "react-icons/hi2";
+import { FaRegUser } from "react-icons/fa"
+import { LuMapPin } from "react-icons/lu"
+import { IoBus } from "react-icons/io5"
 import ClipLoader from "react-spinners/ClipLoader"
-
 import '../app/style.css'
 
 const Stats = () => {
-  const { students,employees,schools,drivers,loading } = useGlobalState()
+  const { riders,lines,intercityTrips,drivers,loading } = useGlobalState()
 
   return (
     <div className='main_section_stat'>
       <div className='main_section_stat_header_div'>
-        <h4>احصائيات</h4>
+        <h4>إحصائيات</h4>
       </div>
       <div className='main_section_stat_items'>
+
         <div className='main_section_stat_item'>
           <div className='main_section_stat_item_icon_div' style={{backgroundColor:'#955BFE'}}>
-            <PiStudentLight className='main_section_stat_item_icon'/>
+            <FaRegUser className='main_section_stat_item_icon'/>
           </div>
           <div className='main_section_stat_info_item'>
-            <p>طالب</p>
+            <p>ركاب</p>
             {loading ? (
               <div style={{ width:'50px',padding:'10px 0',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center'}}>
                 <ClipLoader
@@ -34,17 +34,17 @@ const Stats = () => {
                 />
               </div>
             ) : (
-              <h5>{students.length}</h5>
+              <h5>{riders.length}</h5>
             )}
           </div>
         </div>
 
         <div className='main_section_stat_item'>
           <div className='main_section_stat_item_icon_div' style={{backgroundColor:'#7ABA37'}}>
-            <HiOutlineBuildingOffice2 className='main_section_stat_item_icon'/>
+            <IoBus className='main_section_stat_item_icon'/>
           </div>
           <div className='main_section_stat_info_item'>
-            <p>موظف</p>
+            <p>خطوط</p>
             {loading ? (
               <div style={{ width:'50px',padding:'10px 0',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center'}}>
                 <ClipLoader
@@ -56,17 +56,17 @@ const Stats = () => {
                 />
               </div>
             ) : (
-              <h5>{employees.length}</h5>
+              <h5>{lines.length}</h5>
             )}
           </div>
         </div>
 
         <div className='main_section_stat_item'>
           <div className='main_section_stat_item_icon_div' style={{backgroundColor:'#FFB400'}}>
-            <LuSchool2 className='main_section_stat_item_icon'/>
+            <LuMapPin className='main_section_stat_item_icon'/>
           </div>
           <div className='main_section_stat_info_item'>
-            <p>مدرسة</p>
+            <p>رحلات يومية</p>
             {loading ? (
               <div style={{ width:'50px',padding:'10px 0',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center'}}>
                 <ClipLoader
@@ -78,17 +78,17 @@ const Stats = () => {
                 />
               </div>
             ) : (
-              <h5>{schools.length}</h5>
+              <h5>{intercityTrips.length}</h5>
             )}
           </div>
         </div>
 
         <div className='main_section_stat_item'>
           <div className='main_section_stat_item_icon_div'  style={{backgroundColor:'#16B1FF'}}>
-            <PiVanLight className='main_section_stat_item_icon'/>
+            <PiVanLight className='main_section_stat_item_icon' style={{fontSize:'36px'}}/>
           </div>
           <div className='main_section_stat_info_item'>
-            <p>سائق</p>
+            <p>سواق</p>
             {loading ? (
               <div style={{ width:'50px',padding:'10px 0',borderRadius:'10px',display:'flex',alignItems:'center',justifyContent:'center'}}>
                 <ClipLoader
@@ -104,6 +104,7 @@ const Stats = () => {
             )}
           </div>
         </div>
+
       </div>
     </div>
   )

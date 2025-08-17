@@ -1,99 +1,73 @@
 import React,{useState} from 'react'
 import Image from 'next/image'
-import { doc,getDoc,writeBatch,Timestamp,updateDoc } from "firebase/firestore"
+import { doc,getDoc,writeBatch,Timestamp } from "firebase/firestore"
 import { DB } from '../firebaseConfig'
 import ClipLoader from "react-spinners/ClipLoader"
-import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css'
 import { Modal } from "antd"
-import { v4 as uuidv4 } from "uuid"
 import { useGlobalState } from '../globalState'
 import { BsArrowLeftShort } from "react-icons/bs"
 import { FcDeleteDatabase } from "react-icons/fc"
-import { FcCancel } from "react-icons/fc"
 import { FaCaretUp } from "react-icons/fa6"
 import { FaCaretDown } from "react-icons/fa6"
-import { FaPlus } from "react-icons/fa6"
 import { FiPlusSquare } from "react-icons/fi"
 import imageNotFound from '../images/NoImage.jpg'
 import switchLine from '../images/transfer.png'
-import { FiEdit2 } from "react-icons/fi"
-import { FcOk } from "react-icons/fc"
 
 const  Drivers = () => {
-  const { drivers,schools,companies } = useGlobalState()
+  const { drivers } = useGlobalState()
 
-  // Define the default line time table
-  const defaultTimeTable = [
-    { day: "sunday", arabic_day: "الأحد", startTime: null, active: false },
-    { day: "monday", arabic_day: "الاثنين", startTime: null, active: false },
-    { day: "tuesday", arabic_day: "الثلاثاء", startTime: null, active: false },
-    { day: "wednesday", arabic_day: "الأربعاء", startTime: null, active: false },
-    { day: "thursday", arabic_day: "الخميس", startTime: null, active: false },
-    { day: "friday", arabic_day: "الجمعة", startTime: null, active: false },
-    { day: "saturday", arabic_day: "السبت", startTime: null, active: false }
-  ];
-
+  const [selectedTab, setSelectedTab] = useState('lines')
   const [driverNameFilter, setDriverNameFilter] = useState('')
+  const [addressFilter,setAddressFilter] = useState('')
   const [carTypeFilter, setCarTypeFilter] = useState('')
-  const [ratingSortDirection, setRatingSortDirection] = useState(null)
+  const [linesNumberSortDirection, setLinesNumberSortDirection] = useState(null)
+  const [tripsNumberSortDirection, setTripsNumberSortDirection] = useState(null)
   const [selectedDriver,setSelectedDriver] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isAddingNewLineModalOpen,setIsAddingNewLineModalOpen] = useState(false)
-  const [riderType,setRiderType] = useState('student')
-  const [lineName,setLineName] = useState('')
-  const [lineSchool,setLineSchool] = useState('')
-  const [lineSchoolLocation, setLineSchoolLocation] = useState(null)
-  const [lineCompany,setLineCompany] = useState('')
-  const [lineCompanyLocation, setLineCompanyLocation] = useState(null)
-  const [lineTimeTable, setLineTimeTable] = useState(defaultTimeTable)
-  const [firstDayTimeSelected, setFirstDayTimeSelected] = useState(null)
-  const [editingDayTime, setEditingDayTime] = useState(null)
-  const [newDayTime, setNewDayTime] = useState(null)
-  const [addingNewLineLoading,setAddingNewLineLoading] = useState(false)
-  const [isOpeningLineInfoModal,setIsOpeningLineInfoModal] = useState(false)
   const [selectedLine, setSelectedLine] = useState(null)
   const [expandedLine, setExpandedLine] = useState(null)
-  const [isDeletingRiderFromLine,setIsDeletingRiderFromLine] = useState(false)
   const [isOpeningSwitchLineModal,setIsOpeningSwitchLineModal] = useState(false)
   const [switchDriverID,setSwitchDriverID] = useState('')
   const [switchLineStartDate,setSwitchLineStartDate] = useState('')
   const [switchLineEndDate,setSwitchLineEndDate] = useState('')
-  const [switchedLineIndex,setSwitchedLineIndex] = useState('')
+  const [transferType, setTransferType] = useState('today'); // 'today' or 'future'
+  const [tripPhases, setTripPhases] = useState({ first: false, second: false }); 
   const [isTransferringLine,setIsTransferringLine] = useState(false)
-  const [isDeletingLine,setIsDeletingLine] = useState(false)
-  
   
   // Filtered drivers based on search term
   const filteredDrivers = drivers.filter((driver) => {
+    // Filter by selected service type based on selected tab
+    const matchesServiceType =
+      (selectedTab === 'lines' && driver.service_type === 'خطوط') ||
+      (selectedTab === 'intercities' && driver.service_type === 'رحلات يومية بين المدن');
+
     // Filter by name
-    const matchesName = driverNameFilter === '' || driver.driver_full_name.includes(driverNameFilter)
+    const matchesName = driverNameFilter === '' || driver.full_name.includes(driverNameFilter)
+
+    //Filter by home address
+    const matchesAddress = addressFilter === '' || driver.home_address.includes(addressFilter)
 
     // Filter by car type
-    const matchesCarType = carTypeFilter === '' || driver.driver_car_type === carTypeFilter;
-    return matchesName && matchesCarType;
-  })
-  .map((driver) => {
-     // Calculate total ratings from school_rating and riders_rating
-    const totalSchoolRating = driver?.school_rating?.reduce((sum, r) => sum + r, 0) || 0;
-    const totalStudentRating = driver?.student_rating?.reduce((sum, r) => sum + r, 0) || 0;
-
-     // Calculate the total rating and average rating
-     const totalRating = totalSchoolRating + totalStudentRating;
-     const totalEntries =
-       (driver?.school_rating?.length || 0) + (driver?.student_rating?.length || 0);
- 
-     const avgRating = totalEntries > 0 ? Math.round(totalRating / totalEntries) : "-";
- 
-     return { ...driver, avgRating };
+    const matchesCarType = carTypeFilter === '' || driver.car_type === carTypeFilter;
+    
+    return matchesServiceType && matchesName && matchesAddress && matchesCarType;
   })
   .sort((a, b) => {
-    // Sort by rating
-    if (ratingSortDirection === 'asc') {
-      return a.avgRating === '-' ? 1 : b.avgRating === '-' ? -1 : a.avgRating - b.avgRating;
-    } else if (ratingSortDirection === 'desc') {
-      return a.avgRating === '-' ? 1 : b.avgRating === '-' ? -1 : b.avgRating - a.avgRating;
+    if(selectedTab === 'lines') {
+      if (linesNumberSortDirection === 'asc') {
+        return a.lines.length === '-' ? 1 : b.lines.length === '-' ? -1 : a.lines.length - b.lines.length;
+      } else if (linesNumberSortDirection === 'desc') {
+        return a.lines.length === '-' ? 1 : b.lines.length === '-' ? -1 : b.lines.length - a.lines.length;
+      }
+    } else {
+      if (tripsNumberSortDirection === 'asc') {
+        return a.intercityTrips.length === '-' ? 1 : b.intercityTrips.length === '-' ? -1 : a.intercityTrips.length - b.intercityTrips.length;
+      } else if (linesNumberSortDirection === 'desc') {
+        return a.intercityTrips.length === '-' ? 1 : b.intercityTrips.length === '-' ? -1 : b.intercityTrips.length - a.intercityTrips.length;
+      }
     }
+    
     return 0;
   });
     
@@ -102,40 +76,34 @@ const  Drivers = () => {
     setDriverNameFilter(e.target.value);
   };
 
+  // Handle driver destination change
+  const handleAddressChange = (e) => {
+    setAddressFilter(e.target.value);
+  };
+
   // Filter by driver car type
   const handleCarTypeChange = (e) => {
     setCarTypeFilter(e.target.value);
   };
 
-  // Filter drivers by highest rating
-  const handleSortByHighestRating = () => {
-    setRatingSortDirection('desc');
+  // Filter drivers by highest lines number
+  const handleSortByHighestLinesNumber = () => {
+    setLinesNumberSortDirection('desc');
   };
   
-  // Filter drivers by lowest rating
-  const handleSortByLowestRating = () => {
-    setRatingSortDirection('asc');
+  // Filter drivers by lowest lines number
+  const handleSortByLowestLinesNumber = () => {
+    setLinesNumberSortDirection('asc');
   };
 
-  // Rating color based on rating score
-  const getRatingClassName = (rating) => {
-    if (rating === undefined || rating === null || rating === 0) {
-      return 'no-rating';
-    }
-    if (rating > 0 && rating < 3) {
-      return 'low-rating';
-    }
-    if (rating >= 3 && rating < 4) {
-      return 'medium-rating';
-    }
-    if (rating >= 4) {
-      return 'high-rating';
-    }
+  // Filter drivers by highest lines number
+  const handleSortByHighestTripsNumber = () => {
+    setTripsNumberSortDirection('desc');
   };
-
-  // Select the driver
-  const selectDriver = async (driver) => {
-    setSelectedDriver(driver);
+  
+  // Filter drivers by lowest lines number
+  const handleSortByLowestTripsNumber = () => {
+    setTripsNumberSortDirection('asc');
   };
 
   // Handle back action
@@ -144,427 +112,14 @@ const  Drivers = () => {
     setExpandedLine(null)
   };
 
-  //Open add-new-line Modal
-  const handleOpenModal = () => {
-    setIsAddingNewLineModalOpen(true)
-  }
-
-  //Close add-new-line Modal
-  const handleCloseModal = () => {
-    setIsAddingNewLineModalOpen(false)
-    setLineName("")
-    setLineSchool("")
-    setLineCompany('')
-    setLineTimeTable(defaultTimeTable)
-    setFirstDayTimeSelected(null)
-  }
-
-  // Handle school selection and capture its location
-  const handleSchoolChange = (e) => {
-    const selectedSchoolName = e.target.value;
-    setLineSchool(selectedSchoolName);
-
-    // Find the selected school from the schools array
-    const selectedSchool = schools.find(school => school.name === selectedSchoolName);
-
-    // If the school exists, update the location state
-    if (selectedSchool) {
-      setLineSchoolLocation({
-        latitude: selectedSchool.latitude,
-        longitude: selectedSchool.longitude,
-      });
-    }
-  };
-
-  // Handle school selection and capture its location
-  const handleCompanyChange = (e) => {
-    const selectedCompanyName = e.target.value;
-    setLineCompany(selectedCompanyName);
-
-    // Find the selected school from the schools array
-    const selectedCompany = companies.find(company => company.name === selectedCompanyName);
-
-    // If the school exists, update the location state
-    if (selectedCompany) {
-      setLineCompanyLocation({
-        latitude: selectedCompany.latitude,
-        longitude: selectedCompany.longitude,
-      });
-    }
-  };
-
-  // Handle time selection for each day
-  const handleTimeChange = (day, time) => {
-    const formattedTime = time ? `${time.getHours()}:${time.getMinutes()}` : null;
-
-    setLineTimeTable((prev) =>
-      prev.map((item) =>
-        item.day === day
-          ? {
-              ...item,
-              startTime: formattedTime === "0:0" ? null : time, // If 00:00, reset time
-              active: formattedTime !== "0:0" // If 00:00, deactivate the day
-            }
-          : item
-      )
-    )
-
-    // Update the latest selected time (if not 00:00)
-    if (formattedTime !== "0:0") {
-      setFirstDayTimeSelected(time)
-    }
-  };
-
-  // Copy the selected day time to all other days (except Friday & Saturday)
-  const copyTimeToAllDays = () => {
-    if (!firstDayTimeSelected) return;
-  
-    setLineTimeTable((prev) =>
-      prev.map((day) =>
-        day.day !== "friday" && day.day !== "saturday" && firstDayTimeSelected !== null
-          ? { ...day, startTime: firstDayTimeSelected, active: true }
-          : day
-      )
-    );
-  };
-
-  const generateBillStructure = (year) => {
-    const bill = {};
-    for (let month = 1; month <= 12; month++) {
-      const monthKey = `${year}-${String(month).padStart(2, "0")}`;
-      bill[monthKey] = { paid: false };
-    }
-    return bill;
-  };
-
-  // Handle add new line
-  const handleAddLine = async () => {
-    if (!lineName) {
-      alert("الرجاء تحديد اسم الخط");
-      return;
-    }
-
-    if(riderType === 'student' && (!lineSchool || !lineSchoolLocation)) {
-      alert("الرجاء تحديد المدرسة");
-      return;
-    }
-
-    if(riderType === "employee" && (!lineCompany || !lineCompanyLocation)) {
-      alert("الرجاء تحديد اسم و موقع الشركة");
-      return;
-    }
-
-    setAddingNewLineLoading(true);
-
-    try {
-      const activeDays = lineTimeTable.filter((day) => day.active);
-      if (activeDays.length === 0) {
-        alert("يرجى تحديد وقت البدء ليوم واحد على الأقل.");
-        return;
-      }
-
-      // Generate unique ID for the new line
-      const newLineId = uuidv4()
-
-      const newLine = {
-        id: newLineId,
-        lineName,
-        lineTimeTable: lineTimeTable.map((day,index) => ({
-          ...day,
-          dayIndex: index,
-          startTime: day.startTime ? Timestamp.fromDate(day.startTime) : null
-        })),
-        riders: [],
-        ...(riderType === "student"
-          ? {
-              line_destination: lineSchool,
-              line_destination_location: lineSchoolLocation
-            }
-          : {
-              line_destination: lineCompany,
-              line_destination_location: lineCompanyLocation
-            }),
-        //line_active:false,
-        //line_index:null,
-        //current_trip: "first",
-        //first_trip_started: false,
-        //first_trip_finished: false,
-        //second_trip_started: false,
-        //second_trip_finished: false,
-        //started_the_line: null,
-        //arrived_to_destination: null,
-      };
-
-      // Fetch driver document
-      const driverRef = doc(DB, "drivers", selectedDriver.id);
-      const driverDoc = await getDoc(driverRef);
-
-      if (!driverDoc.exists()) {
-        throw new Error("السائق غير موجود في قاعدة البيانات.");
-      }
-
-      const driverData = driverDoc.data();
-
-      const updatedLines = driverData.line ? [...driverData.line.map(line => ({ ...line, riders: [...line.riders] }))] : [];
-
-      updatedLines.push(newLine);
-
-      // Check if `bill` field exists, if not, generate and add it
-      const updatedWage = driverData.wage || generateBillStructure(2025);
-
-
-      await updateDoc(driverRef, { line: updatedLines,wage: updatedWage });
-
-      // Update local state
-      setSelectedDriver((prevDriver) => ({
-        ...prevDriver,
-        line: updatedLines,
-        wage: updatedWage,
-      }));
-
-      alert("تمت إضافة الخط بنجاح");
-      handleCloseModal();
-    } catch (error) {
-      console.error("Error adding new line:", error);
-      alert("حدث خطأ أثناء إضافة الخط. حاول مرة أخرى.");
-    } finally {
-      setAddingNewLineLoading(false)
-      setLineName("")
-      setLineSchool("")
-      setLineCompany("")
-      setLineTimeTable(defaultTimeTable)
-      setFirstDayTimeSelected(null)
-    }
-  };
-
-  // Handle open line-info Modal
-  const openLineInfoModal = (line) => {
-    setSelectedLine(line)
-    setIsOpeningLineInfoModal(true)
-  }
-
-  // Function to format timestamps
-  const formatTime = (timestamp) => {
-    if (!timestamp) return "--"; // If no time is set
-    
-    const formattedTime = new Date(timestamp.seconds * 1000).toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  
-    return formattedTime === "00:00" ? "--" : formattedTime; // Show "-" if the time is "00:00"
-  }
-  
-  // Function to update start time in Firestore
-  const updateStartTime = async (dayIndex,driverId) => {
-    if (!newDayTime) return; // Prevent saving if no time selected
-
-    try {
-      const driverRef = doc(DB, "drivers", driverId); // Reference to the driver doc
-      const driverSnap = await getDoc(driverRef);
-
-      if (!driverSnap.exists()) {
-        alert("السائق غير موجود في قاعدة البيانات");
-        return;
-      }
-
-      const driverData = driverSnap.data();
-
-      // Find the correct line inside the driver's lines array
-      const updatedLines = driverData.line.map((line) => {
-        if (line.id === selectedLine.id) {
-          return {
-            ...line,
-            lineTimeTable: line.lineTimeTable.map((day, index) => {
-              if (index === dayIndex) {
-                return {
-                  ...day,
-                  startTime: Timestamp.fromDate(new Date(`2000-01-01T${newDayTime}`)),
-                  active: newDayTime !== "00:00", // Activate if not "00:00"
-                };
-              }
-              return day;
-            }),
-          };
-        }
-        return line;
-      });
-
-      // Update Firestore with the modified lines array
-      await updateDoc(driverRef, { line: updatedLines });
-
-      // Update state instantly in `selectedDriver`
-      setSelectedDriver((prevDriver) => ({
-        ...prevDriver,
-        line: updatedLines,
-      }))
-
-      setSelectedLine(updatedLines.find((line) => line.id === selectedLine.id));
-
-      alert("تم تحديث وقت الانطلاق بنجاح");
-
-    } catch (error) {
-      console.error("Error updating start time:", error.message);
-      alert("حدث خطأ أثناء تحديث وقت الانطلاق");
-    } finally{
-      handleCloseLineInfoModal()
-    }
-  };
-
-  // Close line-info Modal
-  const handleCloseLineInfoModal = () => {
-    setSelectedLine(null)
-    setIsOpeningLineInfoModal(false)
-    setEditingDayTime(null)
-    setNewDayTime(null)
-  }
-
   // Open line riders list
   const toggleLine = (index) => {
     setExpandedLine((prev) => (prev === index ? null : index));
   }
 
-  // Delete rider from the line
-  const deleteRiderFromLineHandler = async (riderId, lineIndex, driverId) => {
-    if(isDeletingRiderFromLine) return
-
-    const confirmDelete = window.confirm("هل تريد فعلاً إزالة هذا الطالب من الخط؟")
-    if (!confirmDelete) return
-
-    setIsDeletingRiderFromLine(true)
-
-    try {
-      const driverRef = doc(DB, "drivers", driverId);
-      const riderRef = doc(DB, "riders", riderId);
-  
-      // Get the current lines
-      const currentLines = selectedDriver.line || [];
-  
-      // Update the specific line by removing the rider
-      const updatedLines = currentLines.map((line, idx) => {
-        if (idx === lineIndex) {
-          return {
-            ...line,
-            riders: line.riders.filter((rider) => rider.id !== riderId),
-          };
-        }
-        return line;
-      });
-
-      // Fetch rider data
-      const riderDoc = await getDoc(riderRef);
-      if (!riderDoc.exists()) {
-        alert("الطالب غير موجود");
-        return;
-      }
-
-      const riderData = riderDoc.data();
-      let updatedBill = riderData.bill || {};
-
-      // Get today's date in Iraqi time
-      const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }));
-      const year = today.getFullYear();
-      const month = today.getMonth();
-      const day = today.getDate();
-      const todayISO = today.toISOString().split("T")[0];
-      const currentMonthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
-      const fullDriverCommission = riderData.driver_commission || 0;
-      const driverDailyRate = fullDriverCommission / 30;
-
-      // Deactivate all future months
-      for (let y = year; y <= 2099; y++) {
-        for (let m = y === year ? month + 1 : 0; m < 12; m++) {
-            const futureMonthKey = `${y}-${String(m + 1).padStart(2, "0")}`;
-            if (updatedBill[futureMonthKey]) {
-                updatedBill[futureMonthKey].active = false;
-            }
-        }
-      }
-
-      let start_date = updatedBill[currentMonthKey]?.start_date
-      ? updatedBill[currentMonthKey].start_date
-      : `${year}-${String(month + 1).padStart(2, "0")}-01`;
-
-      let newDriverCommission = 0;
-
-      // Calculate new amount based on days of usage
-      if (updatedBill[currentMonthKey]) {
-        let billEntry = updatedBill[currentMonthKey];
-
-        if (!billEntry.end_date) { 
-          billEntry.end_date = todayISO;
-          let startDate = new Date(start_date);
-          const startDay = startDate.getDate();
-          const usedDays = day - startDay + 1;
-
-          // Recalculate driver commission
-          newDriverCommission = Math.round(driverDailyRate * usedDays);
-
-          //billEntry.amount = newAmount;
-          billEntry.driver_commission_amount = newDriverCommission;
-        }
-      }
-
-      // Fetch driver data
-      const driverDoc = await getDoc(driverRef);
-      if (!driverDoc.exists()) {
-        alert("السائق غير موجود");
-        return;
-      }
-
-      const driverData = driverDoc.data();
-      let updatedWages = driverData.complementaryWages || {};
-
-      // Ensure the month exists in wages
-      if (!updatedWages[currentMonthKey]) {
-        updatedWages[currentMonthKey] = [];
-      }
-
-      // Add the removed rider's amount to wages
-      updatedWages[currentMonthKey].push({
-        rider_id: riderId,
-        start_date: start_date,
-        end_date :todayISO,
-        amount: newDriverCommission,
-      });
-  
-      // Use writeBatch for atomic updates
-      const batch = writeBatch(DB);
-  
-      // Update the driver's line field
-      batch.update(driverRef, {
-        line: updatedLines,
-        complementaryWages: updatedWages,
-      });
-  
-      // Reset the rider's driver_id field
-      batch.update(riderRef, {
-        driver_id: null,
-        bill: updatedBill,
-      });
-  
-      // Commit the batch
-      await batch.commit();
-  
-      // Update the local state
-      setSelectedDriver((prevDriver) => ({
-        ...prevDriver,
-        line: updatedLines,
-      }));
-  
-      alert("تم حذف الطالب من الخط بنجاح وتحديث الفواتير");
-    } catch (error) {
-      console.error("Error removing rider from line:", error);
-      alert("خطأ أثناء محاولة الحذف. الرجاء المحاولة مرة ثانية");
-    } finally {
-      setIsDeletingRiderFromLine(false)
-    }
-  }
-
   // Open switch line to other driver Modal
-  const openSwitchLineModal = (line,index) => {
+  const openSwitchLineModal = (line) => {
     setSelectedLine(line)
-    setSwitchedLineIndex(index)
     setIsOpeningSwitchLineModal(true)
   }
 
@@ -575,6 +130,7 @@ const  Drivers = () => {
     setSwitchLineStartDate('')
     setSwitchLineEndDate('')
     setIsOpeningSwitchLineModal(false)
+    setTransferType('today')
   }
 
   // Select substitute driver
@@ -592,89 +148,12 @@ const  Drivers = () => {
     setSwitchLineEndDate(e.target.value);
   };
 
-  // Reset riders inside the copied line status
-  const resetRidersForPhase = (originalRiders) => {
-    return originalRiders.map((rider) => ({
-      id: rider.id,
-      name: rider.name,
-      notification_token: rider.notification_token || null,
-      phone_number: rider.phone_number || null,
-      home_location: rider.home_location || null,
-      picked_up: false,
-      checked_in_front_of_school: false,
-      picked_from_school: false,
-      dropped_off: false,
-    }));
-  };
-
-  // Remove transfered line from original driver
-  const removeTransferredLineFromOriginalDriver = (originalTracking, lineIdToRemove) => {
-    const lines = originalTracking.today_lines || [];
-
-    // 1. Remove the line
-    const updatedLines = lines.filter((line) => line.id !== lineIdToRemove);
-    
-    if (updatedLines.length === 0) {
-      // Mark journey as completed
-      return {
-        ...originalTracking,
-        today_lines: [],
-        complete_today_journey: true,
-      };
-    }
-    
-    // 2. Re-index
-    const reindexedLines = updatedLines.map((line, index) => ({
-      ...line,
-      line_index: index + 1,
-    }));
-
-    // 3. Determine current trip phase (first or second)
-    const allFirstTripsFinished = reindexedLines.every(
-      (line) => line.first_trip_started && line.first_trip_finished
-    );
-    const currentPhase = allFirstTripsFinished ? "second" : "first";
-
-    // 4. Find next line to activate based on phase and circular progression
-    let nextActiveIndex = -1;
-
-    for (let i = 0; i < reindexedLines.length; i++) {
-      const line = reindexedLines[i];
-
-      const isIncompleteTrip =
-        currentPhase === "first" 
-          ? !line.first_trip_started || !line.first_trip_finished
-          : !line.second_trip_started || !line.second_trip_finished;
-
-      if (isIncompleteTrip) {
-        nextActiveIndex = i;
-        break;
-      }
-    }
-
-    // 5. If none left to activate, all lines done for this phase → journey complete
-    if (nextActiveIndex === -1) {
-      return {
-        ...originalTracking,
-        today_lines: reindexedLines.map((line) => ({
-          ...line,
-          line_active: false,
-        })),
-        complete_today_journey: true,
-      };
-    }
-
-    // 6. Activate next active line
-    const finalLines = reindexedLines.map((line, index) => ({
-      ...line,
-      line_active: index === nextActiveIndex,
-    }));
-    
-    return {
-      ...originalTracking,
-      today_lines: finalLines,
-    };
-  };
+  // Get Tomorrow date
+  const getTomorrowDateString = () => {
+    const today = new Date();
+    today.setDate(today.getDate() + 1); // Move to tomorrow
+    return today.toISOString().split("T")[0]; // Format YYYY-MM-DD
+  }
     
   // Transfer line to another driver
   const handleTransferLineToDriverB = async () => {
@@ -698,132 +177,191 @@ const  Drivers = () => {
   
       const fromDriverData = fromSnap.data();
       const toDriverData = toSnap.data();
-  
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
-  
-      const startDate = new Date(switchLineStartDate);
-      startDate.setUTCHours(0, 0, 0, 0);
-  
-      const endDate = new Date(switchLineEndDate);
-      endDate.setUTCHours(0, 0, 0, 0);
-  
-      const startTimestamp = Timestamp.fromDate(startDate);
-      const endTimestamp = Timestamp.fromDate(endDate);
 
-      const isToday = +startDate.getTime() === +today.getTime();
-      const isFuture = startDate > today;
-      const isTodayAndFuture = isToday && endDate > today;
+      //Future Transfer
+      if (transferType === 'future') {
+        const startDate = new Date(switchLineStartDate);
+        startDate.setUTCHours(0, 0, 0, 0);
+        const endDate = new Date(switchLineEndDate);
+        endDate.setUTCHours(0, 0, 0, 0);
 
-      const yearMonthKey = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, "0")}`;
-      const dayKey = today.getDate().toString().padStart(2, "0");
+        const startTimestamp = Timestamp.fromDate(startDate);
+        const endTimestamp = Timestamp.fromDate(endDate);
 
-      const originalLineId = fromDriverData.line?.[switchedLineIndex]?.id;
-      if (!originalLineId) throw new Error("خط غير موجود");
-
-      const fromDaily = fromDriverData.dailyTracking?.[yearMonthKey]?.[dayKey];
-      const toDaily = toDriverData.dailyTracking?.[yearMonthKey]?.[dayKey];
-      const fromTodayLine = fromDaily?.today_lines?.find((l) => l.id === originalLineId);
-      const toDriverStarted = toDaily?.start_today_journey === true;
-
-      // ✅ Smart selection of originalLine based on trip context
-      const originalLine = (isToday && fromTodayLine && toDriverStarted)
-      ? fromTodayLine
-      : fromDriverData.line?.find((l) => l.id === originalLineId);
-
-      if (!originalLine) throw new Error("خط غير موجود");
-  
-      const batch = writeBatch(DB);
-  
-      // === Update Driver A's line list
-      const updatedFromLines = fromDriverData.line.map((line) =>
-        line.id === originalLineId
-          ? { ...line, desactive_periode: { start: startTimestamp, end: endTimestamp }, subs_driver: switchDriverID }
-          : line
-      );
-      batch.update(fromDriverRef, { line: updatedFromLines });
-  
-      const futureTransferredLine = {
-        ...originalLine,
-        active_periode: { start: startTimestamp, end: endTimestamp },
-        original_driver: selectedDriver.id
-      };
-
-      // === Case 1: Handle TODAY
-      if (isToday || isTodayAndFuture) {
-        const daily = toDaily || {};
-        const todayLines = daily.today_lines || [];
-  
-        const nextIndex = todayLines.length > 0 ? Math.max(...todayLines.map((line) => line.line_index || 0)) + 1 : 1;
-
-        // === Check if the line status doesn't exist for today in original driver's tracking
-        const foundInOriginalTracking = fromTodayLine;
-        const riders = resetRidersForPhase(originalLine.riders || []);
-
-        const todayLine = {
-          id: originalLine.id,
-          lineName: originalLine.lineName,
-          line_destination: originalLine.line_destination,
-          line_destination_location: originalLine.line_destination_location,
-          line_index: nextIndex,
-          line_active: todayLines.length === 0,
-          current_trip: "first",
-          first_trip_started: false,
-          first_trip_finished: false,
-          second_trip_started: false,
-          second_trip_finished: false,
-          riders
-        }
-    
-        const updatedTodayLines = [...todayLines, todayLine];
-  
-        const updatedTracking = {
-          ...toDriverData.dailyTracking,
-          [yearMonthKey]: {
-            ...(toDriverData.dailyTracking?.[yearMonthKey] || {}),
-            [dayKey]: {
-              ...daily,
-              today_lines: updatedTodayLines
+        // === Update original driver's line
+        const updatedFromLines = fromDriverData.lines.map((line) =>
+          line.id === selectedLine?.id
+            ? {
+              ...line,
+              desactive_periode: { start: startTimestamp, end: endTimestamp },
+              subs_driver: switchDriverID
             }
-          }
+            : line
+        );
+        batch.update(fromDriverRef, { lines: updatedFromLines });
+
+        // === Add to substitute driver's line
+        const futureLine = {
+          ...selectedLine,
+          active_periode: { start: startTimestamp, end: endTimestamp },
+          original_driver: selectedDriver.id
         };
-  
-        batch.update(toDriverRef, { dailyTracking: updatedTracking });
+        const updatedToLines = [...(toDriverData.lines || []), futureLine];
+        batch.update(toDriverRef, { lines: updatedToLines });
+      }
 
-        // ✅ Remove from original driver dailyTracking
-        if (foundInOriginalTracking) {
-          const cleanedOriginalTracking = removeTransferredLineFromOriginalDriver(
-            fromDaily,
-            originalLine.id
-          )
+      //Today transfer
+      if (transferType === 'today') {
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
 
-          const cleanedDailyTracking = {
-            ...fromDriverData.dailyTracking,
-            [yearMonthKey]: {
-              ...(fromDriverData.dailyTracking?.[yearMonthKey] || {}),
-              [dayKey]: cleanedOriginalTracking,
+        const yearMonthKey = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, "0")}`;
+        const dayKey = today.getDate().toString().padStart(2, "0");
+
+        const driverADaily = fromDriverData.dailyTracking?.[yearMonthKey]?.[dayKey];
+        const driverBDaily = toDriverData.dailyTracking?.[yearMonthKey]?.[dayKey];
+
+        // === Prepare line data to push to driver B
+        const commonLineData = {
+          id: selectedLine.id,
+          name: selectedLine.name,
+        };
+
+        let lineForDriverB;
+        let updatedTodayLinesForDriverA = [...(driverADaily?.todayLines || [])];
+
+        if (tripPhases.first === true && tripPhases.second === false) {
+          lineForDriverB = {
+            ...commonLineData,
+            first_phase: {
+              destination: selectedLine.destination,
+              destination_location: selectedLine.destination_location,
+              phase_finished: false,
+              riders: selectedLine.riders.map(r => ({
+                id: r.id,
+                name: r.name,
+                family_name: r.family_name,
+                home_location: r.home_location || null,
+                notification_token: r.notification_token || null,
+                phone_number: r.phone_number || null,
+                picked_up: false,
+              })),
+            },
+            second_phase: {
+              handled_by_other_driver: true,
+              phase_finished: true,
+            },
+          };
+
+          // === Update driver A's line if already started
+          updatedTodayLinesForDriverA = updatedTodayLinesForDriverA.map(l =>l.id === selectedLine.id ? 
+            {
+              ...l,
+              first_phase: {
+                ...l.first_phase,
+                handled_by_other_driver: true,
+                phase_finished: true,
+              },
+            }
+          : l
+          );
+        } else if (tripPhases.first === false && tripPhases.second === true) {
+          lineForDriverB = {
+            ...commonLineData,
+            first_phase: {
+              handled_by_other_driver: true,
+              phase_finished: true,
+            },
+            second_phase: {
+              phase_finished: false,
+              riders: selectedLine.riders.map(r => ({
+                id: r.id,
+                name: r.name,
+                family_name: r.family_name,
+                home_location: r.home_location || null,
+                notification_token: r.notification_token || null,
+                phone_number: r.phone_number || null,
+                dropped_off: false,
+              })),
             },
           }
 
-          batch.update(fromDriverRef, { dailyTracking: cleanedDailyTracking })
+          updatedTodayLinesForDriverA = updatedTodayLinesForDriverA.map(l =>
+            l.id === selectedLine.id
+              ? {
+                  ...l,
+                  second_phase: {
+                    ...l.second_phase,
+                    handled_by_other_driver: true,
+                    phase_finished: true,
+                  },
+                }
+              : l
+          );
+        } else if (tripPhases.first === true && tripPhases.second === true) {
+          lineForDriverB = {
+            ...commonLineData,
+            first_phase: {
+              destination: selectedLine.destination,
+              destination_location: selectedLine.destination_location,
+              phase_finished: false,
+              riders: selectedLine.riders.map(r => ({
+                id: r.id,
+                name: r.name,
+                family_name: r.family_name,
+                home_location: r.home_location || null,
+                notification_token: r.notification_token || null,
+                phone_number: r.phone_number || null,
+                picked_up: false,
+              })),
+            },
+            second_phase: {
+              phase_finished: false,
+              riders: [],
+            },
+          }
+
+          updatedTodayLinesForDriverA = updatedTodayLinesForDriverA.map(l =>
+            l.id === selectedLine.id
+              ? {
+                  ...l,
+                  first_phase: {
+                    ...l.first_phase,
+                    handled_by_other_driver: true,
+                    phase_finished: true,
+                  },
+                  second_phase: {
+                    ...l.second_phase,
+                    handled_by_other_driver: true,
+                    phase_finished: true,
+                  },
+                }
+              : l
+          )
+        } else {
+          alert('يرجى تحديد نوع الرحلة ذهاب او عودة')
         }
 
-        // 💡 If Driver B didn't start the trip yet (today_lines was empty), also push into his normal lines
-        const hasStartedTrip = daily.start_today_journey === true;
-        if (!hasStartedTrip) {
-          const updatedToDriverLines = toDriverData.line || [];
-          updatedToDriverLines.push(futureTransferredLine);
-          batch.update(toDriverRef, { line: updatedToDriverLines });
-        }
+        // === Update driver A's dailyTracking
+        const updatedDriverADaily = {
+          ...driverADaily,
+          todayLines: updatedTodayLinesForDriverA,
+        };
+        batch.update(fromDriverRef, {
+          [`dailyTracking.${yearMonthKey}.${dayKey}`]: updatedDriverADaily
+        });
+
+        // === Update driver B's dailyTracking
+        const updatedDriverBTodayLines = [...(driverBDaily?.todayLines || []), lineForDriverB];
+        const updatedDriverBDaily = {
+          ...driverBDaily,
+          todayLines: updatedDriverBTodayLines,
+        };
+        batch.update(toDriverRef, {
+          [`dailyTracking.${yearMonthKey}.${dayKey}`]: updatedDriverBDaily
+        });
       }
-  
-      // === Case 2: Handle TOMORROW or FUTURE (startDate > today or span beyond today)
-      if (isFuture || isTodayAndFuture) {
-        const updatedToDriverLines = toDriverData.line || [];
-        updatedToDriverLines.push(futureTransferredLine);
-        batch.update(toDriverRef, { line: updatedToDriverLines });
-      }
-  
+
       await batch.commit();
       alert("✅ تم نقل الخط بنجاح!");
     } catch (err) {
@@ -837,122 +375,8 @@ const  Drivers = () => {
       setIsOpeningSwitchLineModal(false)
       setIsTransferringLine(false)
     }
-  };
-  
-  // Delete an entire line
-  const deleteLineHandler = async (lineIndex, driverId) => {
-    if (isDeletingLine) return;
-
-    const confirmDelete = window.confirm("هل تريد فعلاً إزالة هذا الخط وجميع طلابه؟");
-    if (!confirmDelete) return;
-
-    setIsDeletingLine(true);
-
-    try {
-        const driverRef = doc(DB, "drivers", driverId);
-        const driverDoc = await getDoc(driverRef);
-        if (!driverDoc.exists()) {
-          alert("السائق غير موجود");
-          return;
-        }
-
-        const driverData = driverDoc.data();
-        const currentLines = selectedDriver.line || [];
-        const ridersToReset = currentLines[lineIndex]?.riders || [];
-        let updatedLines = currentLines.filter((_, idx) => idx !== lineIndex);
-
-        // Get today's date in Iraqi time
-        const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }));
-        const year = today.getFullYear();
-        const month = today.getMonth();
-        const day = today.getDate();
-        const todayISO = today.toISOString().split("T")[0];
-        const currentMonthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
-
-        let updatedWages = driverData.complementaryWages || {};
-        if (!updatedWages[currentMonthKey]) {
-          updatedWages[currentMonthKey] = [];
-        }
-
-        // Use writeBatch for atomic updates
-        const batch = writeBatch(DB);
-
-        for (const rider of ridersToReset) {
-          const riderRef = doc(DB, "riders", rider.id);
-          const riderDoc = await getDoc(riderRef);
-          if (!riderDoc.exists()) continue;
-    
-          const riderData = riderDoc.data();
-          let updatedBill = riderData.bill || {};
-
-          // Deactivate future months
-          for (let y = year; y <= 2099; y++) {
-            for (let m = y === year ? month + 1 : 0; m < 12; m++) {
-              const futureMonthKey = `${y}-${String(m + 1).padStart(2, "0")}`;
-              if (updatedBill[futureMonthKey]) {
-                updatedBill[futureMonthKey].active = false;
-              }
-            }
-          }
-    
-          if (updatedBill[currentMonthKey]) {
-            let billEntry = updatedBill[currentMonthKey];
-    
-            if (!billEntry.end_date) { 
-              billEntry.end_date = todayISO;
-              let startDate = billEntry.start_date ? new Date(billEntry.start_date) : new Date(year,month,1);
-              const startDay = startDate.getDate();
-              const usedDays = day - startDay + 1;
-    
-              // Calculate prorated driver commission
-              const fullDriverCommission = riderData.driver_commission || 0;
-              const driverDailyRate = fullDriverCommission / 30;
-              const newDriverCommission = Math.round(driverDailyRate * usedDays);
-    
-              billEntry.driver_commission_amount = newDriverCommission;
-    
-              // Add the removed rider's amount to wages
-              updatedWages[currentMonthKey].push({
-                rider_id: rider.id,
-                start_date: updatedBill[currentMonthKey]?.start_date
-                  ? updatedBill[currentMonthKey]?.start_date
-                  : `${year}-${String(month + 1).padStart(2, "0")}-01`,
-                end_date: todayISO,
-                amount: newDriverCommission,
-              });
-            }
-          }
-          // Reset rider's driver_id and update the bill
-          batch.update(riderRef, {
-            driver_id: null,
-            bill: updatedBill,
-          });
-        }
-
-        // Update the driver's line field
-        batch.update(driverRef, {
-            line: updatedLines,
-            complementaryWages: updatedWages,
-        });
-
-        // Commit the batch
-        await batch.commit();
-
-        // Update the local state
-        setSelectedDriver((prevDriver) => ({
-            ...prevDriver,
-            line: updatedLines,
-        }));
-
-        alert("تم حذف الخط وجميع طلابه بنجاح وتحديث الفواتير");
-    } catch (error) {
-        console.error("Error removing line:", error);
-        alert("خطأ أثناء محاولة حذف الخط. الرجاء المحاولة مرة ثانية");
-    } finally {
-        setIsDeletingLine(false);
-    }
   }
-
+  
   //Delete driver document from DB
   const handleDelete = async () => {
     if (isDeleting) return;
@@ -963,36 +387,17 @@ const  Drivers = () => {
     setIsDeleting(true);
 
     try {
-      const { id, line,wage } = selectedDriver;
       const batch = writeBatch(DB);
 
-      // Check if the driver has riders in any line
-      const hasRiders = (line || []).some((li) => (li.riders || []).length > 0);
-      if (hasRiders) {
-        alert("لا يمكن حذف السائق لأنه لا يزال لديه طلاب مرتبطين بخطوطه.");
-        setIsDeleting(false);
-        return;
-      }
-
-      // Get today's date in Iraqi time
-      const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }));
-      const year = today.getFullYear();
-      const month = today.getMonth() + 1;
-      const currentMonthKey = `${year}-${String(month).padStart(2, "0")}`;
-
-       // Check for unpaid wages in the current or previous months
-      const unpaidWages = Object.entries(wage).some(([key, bill]) => {
-        return (!bill.paid) && (key === currentMonthKey || key < currentMonthKey);
-      });
-
-      if (unpaidWages) {
-        alert("لا يمكن حذف السائق لأنه لم يتقاضى أجره عن الشهر الحالي أو السابق.");
+      // Check if the driver has lines
+      if (selectedDriver.lines.length > 0) {
+        alert("لا يمكن حذف السائق لأنه لا يزال لديه خطوط في حسابه");
         setIsDeleting(false);
         return;
       }
 
       // Delete the driver document
-      const driverRef = doc(DB, "drivers", id);
+      const driverRef = doc(DB, "drivers", selectedDriver.id);
       batch.delete(driverRef);
 
       // Commit the batch update
@@ -1008,16 +413,122 @@ const  Drivers = () => {
     }
   }
 
+  // Toggle between lines or intercity trips
+  const renderToggle = () => (
+    <div className='toggle-between-school-company-container'>
+      <div
+        className={`toggle-between-school-company-btn ${selectedTab === 'lines' ? 'active' : ''}`} 
+        onClick={() => setSelectedTab('lines')}
+      >
+        <h5>الخطوط</h5>
+      </div>
+      <div
+        className={`toggle-between-school-company-btn ${selectedTab === 'intercities' ? 'active' : ''}`} 
+        onClick={() => setSelectedTab('intercities')}
+      >
+        <h5>الرحلات بين المدن</h5>
+      </div>
+    </div>
+  )
+
   return (
     <div className='white_card-section-container'>
-      {selectedDriver ? (
+      {!selectedDriver ? (
+        <div className='students-section-inner'>
+          {renderToggle()}
+          <div className='students-section-inner-titles'>
+            <div className='students-section-inner-title'>
+              <input 
+                onChange={handleNameChange} 
+                value={driverNameFilter}
+                placeholder='الاسم' 
+                type='text' 
+                className='students-section-inner-title_search_input'
+              />
+            </div>
+            <div className='students-section-inner-title'>
+              <input 
+                onChange={handleAddressChange} 
+                value={addressFilter}
+                placeholder='العنوان' 
+                type='text' 
+              />
+            </div>
+            <div className='students-section-inner-title'>
+              <select
+                onChange={handleCarTypeChange}
+                value={carTypeFilter}
+                style={{width:'230px'}}
+              >
+                <option value=''>نوع السيارة</option>
+                <option value='صالون'>صالون</option>
+                <option value='ميني باص ١٢ راكب'>ميني باص ١٢ راكب</option>
+                <option value='ميني باص ١٨ راكب'>ميني باص ١٨ راكب</option>
+                <option value='٧ راكب (جي ام سي / تاهو)'>٧ راكب (جي ام سي / تاهو)</option>
+              </select>
+            </div>
+            {selectedTab === 'lines' ? (
+              <div className='students-section-inner-title' style={{width:'200px'}}>
+                <div className='driver-rating-box' style={{width:'130px'}}>
+                  <button onClick={handleSortByLowestLinesNumber}>
+                    <FaCaretDown 
+                      size={18} 
+                      className={linesNumberSortDirection === 'asc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}/>
+                  </button>
+                  <h5>عدد الخطوط</h5>
+                  <button onClick={handleSortByHighestLinesNumber}>
+                    <FaCaretUp 
+                      size={18}
+                      className={linesNumberSortDirection === 'desc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}/>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className='students-section-inner-title' style={{width:'200px'}}>
+                <div className='driver-rating-box' style={{width:'130px'}}>
+                <button onClick={handleSortByLowestTripsNumber}>
+                  <FaCaretDown 
+                    size={18} 
+                    className={tripsNumberSortDirection === 'asc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}/>
+                </button>
+                <h5>عدد الرحلات</h5>
+                <button onClick={handleSortByHighestTripsNumber}>
+                  <FaCaretUp 
+                    size={18}
+                    className={tripsNumberSortDirection === 'desc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}/>
+                </button>
+              </div>
+            </div>
+            )}
+          </div>
+          <div className='all-items-list'>
+            {filteredDrivers.map((driver, index) => (
+              <div key={index} onClick={() => setSelectedDriver(driver)} className='single-item'>
+                <div>
+                  <h5>{driver.full_name} {driver.family_name}</h5>
+                </div>
+                <div>
+                  <h5>{driver.home_address}</h5>
+                </div>
+                <div>
+                  <h5>{driver.car_type}</h5>
+                </div>
+                <div style={{width:'200px'}}>
+                  <h5>{selectedTab === 'lines' ? driver?.lines?.length : driver?.intercityTrips?.length}</h5>
+                </div>              
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
         <>
           <div className="item-detailed-data-container">
             <div className='item-detailed-data-header'>
-              <div className='item-detailed-data-header-title'>
-                <h5 style={{marginRight:'10px'}}>{selectedDriver.driver_phone_number || '-'}</h5>  
-                <h5 style={{marginRight:'3px'}}>{selectedDriver.driver_family_name}</h5>
-                <h5>{selectedDriver.driver_full_name}</h5>
+              <div className='item-detailed-data-header-title' style={{flexDirection:'row-reverse',gap:'5px'}}>
+                <h5>{selectedDriver.full_name}</h5>
+                <h5>{selectedDriver.family_name}</h5>
+                <h5>-</h5>
+                <h5>{selectedDriver.phone_number || '-'}</h5>  
               </div>
               <button className="info-details-back-button" onClick={goBack}>
                 <BsArrowLeftShort size={24}/>
@@ -1027,14 +538,14 @@ const  Drivers = () => {
               <div className="item-detailed-data-main-firstBox">
                 <div className='firstBox-image-box'>
                   <Image 
-                    src={selectedDriver.driver_personal_image ? selectedDriver.driver_personal_image : imageNotFound}
+                    src={selectedDriver.personal_image ? selectedDriver.personal_image : imageNotFound}
                     style={{ objectFit: 'cover' }}  
                     width={200}
                     height={200}
                     alt='personal'
                   />
                   <Image 
-                    src={selectedDriver.driver_car_image ? selectedDriver.driver_car_image : imageNotFound} 
+                    src={selectedDriver.car_image ? selectedDriver.car_image : imageNotFound} 
                     style={{ objectFit: 'cover' }}  
                     width={200}
                     height={200}
@@ -1043,24 +554,26 @@ const  Drivers = () => {
                 </div>
                 <div className='firstBox-text-box'>
                   <div>
-                    <h5>{selectedDriver.driver_car_type || '-'}</h5>
+                    <h5 style={{marginLeft:'10px',fontWeight:'bold'}}>النوع</h5>
+                    <h5>{selectedDriver.car_type || '-'}</h5>
                   </div>
                   <div>
-                    <h5 style={{marginLeft:'10px'}}>موديل السيارة</h5>
-                    <h5>{selectedDriver.driver_car_model || '-'}</h5>
+                    <h5 style={{marginLeft:'10px',fontWeight:'bold'}}>الموديل</h5>
+                    <h5>{selectedDriver.car_model || '-'}</h5>
                   </div>
                   <div>
-                    <h5 style={{marginLeft:'10px'}}>لوحة السيارة</h5>
-                    <h5>{selectedDriver.driver_car_plate || '-'}</h5>
+                    <h5 style={{marginLeft:'10px',fontWeight:'bold'}}>اللوحة</h5>
+                    <h5>{selectedDriver.car_plate || '-'}</h5>
                   </div>
                   <div>
+                    <h5 style={{marginLeft:'10px',fontWeight:'bold'}}>المعرف الخاص</h5>
                     <h5>{selectedDriver.id}</h5>
                   </div>
                   <div>
                     <h5 style={{marginLeft:'3px'}}>حذف الحساب</h5>
                     <button 
                       className="assinged-item-item-delete-button" 
-                      onClick={() => handleDelete(selectedDriver.id)}
+                      onClick={() => handleDelete()}
                       disabled={isDeleting}
                     >
                       <FcDeleteDatabase size={24} />
@@ -1068,378 +581,414 @@ const  Drivers = () => {
                   </div>
                 </div>           
               </div>
-
               <div className="item-detailed-data-main-second-box">
-
-                  <div className="assinged-item-box-title">
-                    <h5>الخطوط</h5>
-                    <div className='driver-newgroup-assign' onClick={handleOpenModal}>
-                      <FaPlus />
-                      <h5 style={{marginLeft:'5px'}}>اضافة خط</h5>
-                    </div>
-                    <Modal
-                      title='الخطوط'
-                      open={isAddingNewLineModalOpen}
-                      onCancel={handleCloseModal}
-                      centered
-                      footer={null}
-                    >
-                      <div className='adding_new_line_main'>
-                        <div className='new_line_riderType_btn_container'>
-                          <button 
-                            className={`new_line_riderType_btn ${riderType === 'student' ? 'new_line_riderType_btn_active' : ''}`}
-                            onClick={() => setRiderType('student')}
-                          >طالب
-                          </button>
-                          <button 
-                            className={`new_line_riderType_btn ${riderType === 'employee' ? 'new_line_riderType_btn_active' : ''}`}
-                            onClick={() => setRiderType('employee')}
-                          >موظف          
-                          </button>
-                        </div>
-
-                        <input 
-                          type='text' 
-                          placeholder='اسم الخط'
-                          value={lineName}
-                          onChange={(e) => setLineName(e.target.value)}
-                        />
-
-                        {riderType === "student" ? (
-                          <select 
-                            onChange={handleSchoolChange}
-                            value={lineSchool}
-                            style={{width:'280px'}}
-                          >
-                            <option value=''>المدرسة</option>
-                            {schools.map(school => (
-                              <option key={school.id} value={school.name}>
-                                {school.name}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <select 
-                            onChange={handleCompanyChange}
-                            value={lineCompany}
-                            style={{width:'280px'}}
-                          >
-                            <option value=''>المؤسسة</option>
-                            {companies.map(company => (
-                              <option key={company.id} value={company.name}>
-                                {company.name}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                        
-                        <div className='line-time-table-container'>
-                          {lineTimeTable.map((day,index) => (
-                            <div key={index} className='line-time-table-container-box'>
-                              <p>{day.arabic_day}</p>
-                              <DatePicker                                  
-                                selected={day.startTime}
-                                onChange={(time) => handleTimeChange(day.day, time)}
-                                showTimeSelect
-                                showTimeSelectOnly
-                                timeIntervals={15}
-                                timeCaption="وقت البدء"
-                                dateFormat="HH:mm"
-                                className='private_car_request_form_date_day_input'
-                                placeholderText="وقت البدء"
-                              />
-                            </div>                       
-                          ))}
-                        </div>
-
-                        {/* Show the copy button only after the first time is selected */}
-                        {firstDayTimeSelected && (
-                          <button style={{marginBottom:'10px',backgroundColor:'#16B1FF'}} onClick={copyTimeToAllDays}>
-                            نسخ لجميع الأيام
-                          </button>
-                        )}
-
-                        {addingNewLineLoading ? (
-                          <div style={{ width:'120px',height:'35px',backgroundColor:'#955BFE',borderRadius:'7px',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                            <ClipLoader
-                              color={'#fff'}
-                              loading={addingNewLineLoading}
-                              size={13}
-                              aria-label="Loading Spinner"
-                              data-testid="loader"
-                            />
-                          </div>
-                        ) : (
-                          <button onClick={handleAddLine}>اضف</button>
-                        )}
-                      </div> 
-                    </Modal>
-                  </div>
-
+                <div className="assinged-item-box-title">
+                  <h5>{selectedTab === 'lines' ? 'الخطوط' : 'الرحلات'}</h5>
+                </div>
+                {selectedTab === 'lines' ? (
                   <div className="assinged-item-box-main">
-                    {selectedDriver?.line?.length ? (
-                      <div style={{display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center'}}>
-                        {selectedDriver?.line.map((line,index) => (
-                          <div style={{width:'100%'}} key={index}>
-                            <div className="assinged-item-box-item"> 
-                              <div style={{justifyContent:'space-between'}}>
-                                <button 
-                                  className="assinged-item-item-delete-button" 
-                                  onClick={() => deleteLineHandler(index, selectedDriver.id)}
-                                >
-                                  <FcCancel size={24} />
-                                </button>
-
-                                <button
-                                  className="assinged-item-item-delete-button" 
-                                  onClick={() => openSwitchLineModal(line,index)}
-                                >
-                                  <Image 
-                                    src={switchLine} 
-                                    style={{ objectFit: 'cover' }}  
-                                    width={18}
-                                    height={18}
-                                    alt='switch line'
-                                  />
-                                </button>
-                                <Modal
-                                  title={'تحويل الخط لسائق اخر'}
-                                  open={isOpeningSwitchLineModal}
-                                  onCancel={handleCloseSwitchLineModal}
-                                  centered
-                                  footer={null}
-                                >
-                                  <div className='switch-line-info-conainer'>
-
-                                    <div>
-                                      <p style={{fontWeight:'bold'}}>{selectedLine?.lineName}</p>
-                                    </div>
-
-                                    {/* Select substitute driver */}
-                                    <div className='swicth_line_driver_select'>
-                                      <select onChange={switchDriverIDChangeHandler} value={switchDriverID}>
-                                      <option value=''>السائق المعوض</option>
-                                        {drivers
-                                          .filter(driver => driver.id !== selectedDriver.id) // Exclude current driver
-                                          .map(driver => (
-                                            <option key={driver.id} value={driver.id}>
-                                              {driver.driver_full_name} {driver.driver_family_name}
-                                            </option>
-                                          ))}
-                                      </select>
-                                    </div>
-
-                                    {/* Start Date */}
-                                    <div className='swicth_line_periode_date'>
-                                      <label>تاريخ البداية</label>
-                                      <input type="date" value={switchLineStartDate} onChange={handleSwitchLineStartDate} />
-                                    </div>
-
-                                    {/* End Date */}
-                                    <div className='swicth_line_periode_date'>
-                                      <label>تاريخ النهاية</label>
-                                      <input type="date" value={switchLineEndDate} onChange={handleSwitchLineEndDate} />
-                                    </div>
-
-                                    {/* Submit Button */}
-                                    {isTransferringLine ? (
-                                      <div style={{ width:'100px',height:'30px',backgroundColor:'#955BFE',borderRadius:'7px',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                                        <ClipLoader
-                                          color={'#fff'}
-                                          loading={isTransferringLine}
-                                          size={13}
-                                          aria-label="Loading Spinner"
-                                          data-testid="loader"
-                                        />
-                                      </div>
-                                    ) : (
-                                      <button 
-                                        onClick={handleTransferLineToDriverB}
-                                        className="assign-switch-line-button"
-                                      >
-                                        تأكيد
-                                      </button>
-                                    )}
-                                  </div>
-                                </Modal>
-                              </div>  
-
-                              <h5 
-                                style={{flex:'3',textAlign:'center'}}
-                                onMouseEnter={(e) => (e.target.style.textDecoration = "underline")} // Add underline on hover
-                                onMouseLeave={(e) => (e.target.style.textDecoration = "none")}
-                                onClick={() => openLineInfoModal(line)}
+                  {selectedDriver?.lines?.length ? (
+                    <div style={{display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center'}}>
+                      {selectedDriver?.lines.map((line,index) => (
+                        <div style={{width:'100%'}} key={index}>
+                          <div className="assinged-item-box-item"> 
+                            <div className="assinged-item-box-item-buttons">
+                              <button
+                                className="assinged-item-item-delete-button" 
+                                onClick={() => openSwitchLineModal(line)}
                               >
-                                {line.lineName}  [{line?.riders?.length}]
-                              </h5>
+                                <Image 
+                                  src={switchLine} 
+                                  style={{ objectFit: 'cover' }}  
+                                  width={18}
+                                  height={18}
+                                  alt='switch line'
+                                />
+                              </button>
                               <Modal
-                                title={selectedLine?.lineName}
-                                open={isOpeningLineInfoModal}
-                                onCancel={handleCloseLineInfoModal}
+                                title={'تحويل الخط لسائق اخر'}
+                                open={isOpeningSwitchLineModal}
+                                onCancel={handleCloseSwitchLineModal}
                                 centered
                                 footer={null}
                               >
-                                <div className='line-info-conainer'>
+                                <div className='switch-line-info-conainer'>
                                   <div>
-                                    <p>{selectedLine?.line_destination}</p>
+                                    <p style={{fontWeight:'bold'}}>{selectedLine?.name}</p>
                                   </div>
-                                  {/* New Table for Start Times */}
-                                  <div className="line-time-table">
-                                    <table>
-                                      <thead>
-                                        <tr>   
-                                          <th style={{width:'70px'}}>تعديل</th>                                      
-                                          <th>وقت الانطلاق</th>
-                                          <th>اليوم</th>                                        
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {selectedLine?.lineTimeTable?.map((day, index) => (
-                                          <tr key={index}>
 
-                                            <td style={{width:'70px'}}>                                           
-                                              {editingDayTime === index ? (
-                                                <FcOk 
-                                                  size={20}
-                                                  style={{cursor:'pointer'}}
-                                                  onClick={() => updateStartTime(index,selectedDriver.id)}
-                                                />
-                                              ) : (
-                                                <FiEdit2
-                                                  style={{cursor:'pointer'}}
-                                                  onClick={() => setEditingDayTime(index)}
-                                                />
-                                              )}
-                                            </td>
-                                
-                                            <td>
-                                              {editingDayTime === index ? (
-                                                <input
-                                                  type="time"
-                                                  value={newDayTime || ""}
-                                                  onChange={(e) => setNewDayTime(e.target.value)}
-                                                  className="edit-time-input"
-                                                />
-                                              ) : (
-                                                formatTime(day.startTime)
-                                              )}
-                                            </td>
-
-                                            <td>{day.arabic_day}</td>
-
-                                          </tr>
+                                  {/* Select substitute driver */}
+                                  <div className='swicth_line_driver_select'>
+                                    <select onChange={switchDriverIDChangeHandler} value={switchDriverID}>
+                                    <option value=''>السائق المعوض</option>
+                                      {drivers
+                                        .filter(driver => driver.id !== selectedDriver.id) // Exclude current driver
+                                        .map(driver => (
+                                          <option key={driver.id} value={driver.id}>
+                                            {driver.driver_full_name} {driver.driver_family_name}
+                                          </option>
                                         ))}
-                                      </tbody>
-                                    </table>
+                                    </select>
                                   </div>
+
+                                  {/* Select substitution type today or future */}
+                                  <div className="switch-line-mode-toggle">
+                                    <div>
+                                      <input
+                                        type="radio"
+                                        value="today"
+                                        checked={transferType === 'today'}
+                                        onChange={() => setTransferType('today')}
+                                      />
+                                      <h5>اليوم</h5>
+                                    </div>
+                                    <div>
+                                      <input
+                                        type="radio"
+                                        value="future"
+                                        checked={transferType === 'future'}
+                                        onChange={() => setTransferType('future')}
+                                      />
+                                      <h5>تحديد تاريخ مستقبلي</h5>
+                                    </div>
+                                  </div>
+
+                                  {/* Transfer for Today */}
+                                  {transferType === 'today' && (
+                                    <div className="switch-line-mode-toggle">
+                                      <div>
+                                        <input
+                                          type="checkbox"
+                                          checked={tripPhases.first}
+                                          onChange={() =>
+                                            setTripPhases(prev => ({ ...prev, first: !prev.first }))
+                                          }
+                                        />
+                                        <h5>رحلة الذهاب</h5>
+                                      </div>
+                                      <div>
+                                        <input
+                                          type="checkbox"
+                                          checked={tripPhases.second}
+                                          onChange={() =>
+                                            setTripPhases(prev => ({ ...prev, second: !prev.second }))
+                                          }
+                                          style={{ marginRight: '10px' }}
+                                        />
+                                        <h5>رحلة العودة</h5>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {transferType === 'future' && (
+                                    <>
+                                      <div className='swicth_line_periode_date'>
+                                        <h5>تاريخ البداية</h5>
+                                        <input
+                                          type="date"
+                                          value={switchLineStartDate}
+                                          onChange={handleSwitchLineStartDate}
+                                          min={getTomorrowDateString()} // disables today and earlier
+                                        />
+                                      </div>
+
+                                      <div className='swicth_line_periode_date'>
+                                        <h5>تاريخ النهاية</h5>
+                                        <input
+                                          type="date"
+                                          value={switchLineEndDate}
+                                          onChange={handleSwitchLineEndDate}
+                                          min={switchLineStartDate || getTomorrowDateString()}
+                                        />
+                                      </div>
+                                    </>
+                                  )}
+    
+                                  {/* Submit Button */}
+                                  {isTransferringLine ? (
+                                    <div style={{ width:'100px',height:'30px',backgroundColor:'#955BFE',borderRadius:'7px',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                                      <ClipLoader
+                                        color={'#fff'}
+                                        loading={isTransferringLine}
+                                        size={13}
+                                        aria-label="Loading Spinner"
+                                        data-testid="loader"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <button 
+                                      onClick={handleTransferLineToDriverB}
+                                      className="assign-switch-line-button"
+                                    >
+                                      تأكيد
+                                    </button>
+                                  )}
                                 </div>
                               </Modal>
-
-                              <div>
-                                <button 
-                                  className="assinged-item-item-delete-button" 
-                                  onClick={() => toggleLine(index)}
-                                >
-                                  <FiPlusSquare size={20}/>
-                                </button>
-                              </div>                          
                             </div>
-
-                            {/* Dropdown for riders */}
-                            <div className={`student-dropdown ${expandedLine === index ? "student-dropdown-open" : ""}`}>
-                              {line?.riders?.length ? (
-                                <>
-                                  {line.riders.map((rider) => (
-                                      <div key={rider.id} className='student-dropdown-item'>
-                                        <h5>{rider.name} {rider.family_name}</h5>
-                                        <button 
-                                          className="assinged-item-item-delete-button" 
-                                          onClick={() => deleteRiderFromLineHandler(rider.id, index, selectedDriver.id)}
-                                          disabled={isDeletingRiderFromLine}
-                                        >
-                                          <FcCancel size={24} />
-                                        </button>
-                                      </div>
-                                 
-                                  ))}
-                                </>
-                              ) : (
-                                <h5 className="no-students">لا يوجد طلاب في هذا الخط</h5>
-                              )}
+                            <div className="assinged-item-box-item-driver-line-info">
+                              <h5>{line.name}</h5>
+                              <h5>-</h5>
+                              <h5>{line?.riders?.length}</h5>
+                              <h5>راكب</h5>
+                              <h5>-</h5>
+                              <h5>{line?.id}</h5>
                             </div>
+                            <div className="assinged-item-box-item-buttons">
+                              <button 
+                                className="assinged-item-item-delete-button" 
+                                onClick={() => toggleLine(index)}
+                              >
+                                <FiPlusSquare size={20}/>
+                              </button>
+                            </div>                          
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div style={{width:'100%',textAlign:'center',marginTop:'50px'}}>
-                        <h5>لا يوجد خطوط</h5>
-                      </div>
-                    )}
-                  </div>                  
+                          {/* Dropdown for riders */}
+                          <div className={`student-dropdown ${expandedLine === index ? "student-dropdown-open" : ""}`}>
+                            {line?.riders?.length ? (
+                              <>
+                                {line.riders.map((rider) => (
+                                  <div key={rider.id} className='student-dropdown-item' style={{justifyContent:'center'}} >
+                                    <h5>{rider.name} {rider.family_name}</h5>
+                                    <h5>-</h5>
+                                    <h5>{rider.id}</h5>
+                                  </div>                               
+                                ))}
+                              </>
+                            ) : (
+                              <h5 className="no-students">لا يوجد طلاب في هذا الخط</h5>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{width:'100%',textAlign:'center',marginTop:'50px'}}>
+                      <h5>لا يوجد خطوط</h5>
+                    </div>
+                  )}
+                  </div>
+                ) : (
+                  <div className="assinged-item-box-main">
+                    <div className= "line-student-dropdown-open">
+                      {selectedDriver?.intercityTrips?.length ? (
+                        <>
+                          {selectedDriver?.intercityTrips?.map((trip) => (
+                            <div key={trip?.id} className='trip-dropdown-item'>
+                              <h5>{trip?.id}</h5>
+                            </div>
+                          ))}
+                        </>
+                      ) : (
+                        <div style={{width:'100%',textAlign:'center',marginTop:'50px'}}>
+                          <h5>لا يوجد رحلات</h5>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}                
               </div>
             </div>
           </div>   
-        </>
-      ) : (
-        <div className='students-section-inner'>
-          <div className='students-section-inner-titles'>
-            <div className='students-section-inner-title'>
-              <input 
-                onChange={handleNameChange} 
-                value={driverNameFilter}
-                placeholder='الاسم' 
-                type='text' 
-                className='students-section-inner-title_search_input'/>
-            </div>
-            <div className='students-section-inner-title'>
-              <select
-                onChange={handleCarTypeChange}
-                value={carTypeFilter}
-              >
-                <option value=''>نوع السيارة</option>
-                <option value='ستاركس'>ستاركس</option>
-                <option value='سيارة صالون ٥ راكب'>سيارة صالون ٥ راكب</option>
-                <option value='سيارة خاصة ٧ راكب'>سيارة خاصة ٧ راكب</option>
-                <option value='باص صغير ١٢ راكب'>باص صغير ١٢ راكب</option>
-                <option value='باص متوسط ١٤ راكب'>باص متوسط ١٤ راكب</option>
-                <option value='باص كبير ٣٠ راكب'>باص كبير ٣٠ راكب</option>
-              </select>
-            </div>
-            <div className='students-section-inner-title'>
-              <div className='driver-rating-box'>
-                <button onClick={handleSortByLowestRating}>
-                  <FaCaretDown 
-                    size={18} 
-                    className={ratingSortDirection === 'asc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}/>
-                </button>
-                <h5>التقييم</h5>
-                <button onClick={handleSortByHighestRating}>
-                  <FaCaretUp 
-                    size={18}
-                    className={ratingSortDirection === 'desc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}/>
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className='all-items-list'>
-            {filteredDrivers.map((driver, index) => (
-              <div key={index} onClick={() => selectDriver(driver)} className='single-item'>
-                <div>
-                  <h5>{`${driver.driver_full_name} ${driver.driver_family_name}`}</h5>
-                </div>
-                <div>
-                  <h5>{driver.driver_car_type}</h5>
-                </div>
-                <div>
-                  <h5 className={getRatingClassName(driver.avgRating)}>{driver.avgRating === '-' ? '-' : driver.avgRating}</h5>
-                </div>              
-              </div>
-            ))}
-          </div>
-        </div>
+        </>        
       )}
     </div>
   )
 }
 
 export default Drivers
+
+
+/*
+
+  // Filter drivers by rating
+  const filteredDrivers = drivers.filter((driver) => {
+    // Filter by name
+    const matchesName = driverNameFilter === '' || driver.full_name.includes(driverNameFilter)
+
+    // Filter by car type
+    const matchesCarType = carTypeFilter === '' || driver.car_type === carTypeFilter;
+    return matchesName && matchesCarType;
+  })
+  .map((driver) => {
+    const totalRidersRating = driver?.riders_rating?.reduce((sum, r) => sum + r, 0) || 0;
+
+     const totalEntries = (driver?.riders_rating?.length || 0)
+ 
+     const avgRating = totalEntries > 0 ? Math.round(totalRidersRating / totalEntries) : "-";
+ 
+     return { ...driver, avgRating };
+  })
+  .sort((a, b) => {
+    // Sort by rating
+    if (ratingSortDirection === 'asc') {
+      return a.avgRating === '-' ? 1 : b.avgRating === '-' ? -1 : a.avgRating - b.avgRating;
+    } else if (ratingSortDirection === 'desc') {
+      return a.avgRating === '-' ? 1 : b.avgRating === '-' ? -1 : b.avgRating - a.avgRating;
+    }
+    return 0;
+  });
+
+
+
+  const findUserDocByUserId = async () => {
+  try {
+    const userID = 'user_2vXsPZXz5OLwaB9rO33rwEAbgKJ'
+    const usersRef = collection(DB, "users");
+    const snapshot = await getDocs(usersRef);
+
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      if (data.user_id === userID) {
+        //return doc.id; // Firestore document ID
+        console.log(doc.id)
+      }
+    }
+
+    console.log('Not found')
+  } catch (error) {
+    console.error("Error finding user document:", error);
+    return null;
+  }
+};
+
+Hamdi Driver {
+  driver_doc_id: PkEypouSpiP2hZkDDS47
+  user_doc_id:  m6cCweDEgE2hs10ODDZa
+  user_id:  user_2vbCHYxyqCf7mADp83q0UKQtIOF
+}
+
+Saif Omar Issaoui Driver {      *** DONE ***
+  driver_doc_id: 9l8LjOL7Fadv8UqNs7Uc
+  user_doc_id:  HIM0oa174I8z3XJ5pIGs
+  user_id:  user_2vXpmyfK4mIyl6KiqdstpoZbHed
+  phone_number:   +9647826251114
+}
+
+الزوبعي
+ستار عناد {     *** DONE ***
+  driver_doc_id: 3hU0znFuipk6HX6pr1U4
+  user_doc_id:  halwUcTvUoBXvuYteMmX
+  user_id:  user_2vXok7dgeeuKem9SUZnEQe6qi53
+  phone_number:   +9647829086022
+}
+
+الياسين
+مهيمن عطا
+{                 *** DONE ***
+  driver_doc_id: 4KAVeDB1qsbVPjdYEQOE
+  user_doc_id:  9TltdOHRXSsVwvs5gETG
+  user_id:  user_2vXozzT36lbKuwYVnTwvzvAqEXG
+  phone_number:  +964 7815580533
+}
+
+البدراني
+أيسر قاسم
+{              *** DONE ***     
+  driver_doc_id: 7QfP8ncHCrsXf1EhxiWC
+  user_doc_id:  LfKeU2CeS1QZqetgkgVx
+  user_id:  user_2vXpNUvkmGnvPJ5xl6aR8qJc6rc
+  phone_number:  +9647801008979
+}
+
+صباح
+وليد مرضي صباح
+{                 *** DONE ***
+  driver_doc_id: 9UQllR9etfNwo8TltvQR
+  user_doc_id:  xn8AEG5vVHagWqXfhgUS
+  user_id:  user_2vXpYznqOnmsAB99ZRVR0fx1mVZ
+  phone_number:  +964 7829413039
+}
+
+المحمدي
+سعدي محمد
+{                 *** DONE ***
+  driver_doc_id: FOWxINvbmAdw7lzJCgMc
+  user_doc_id:  0I9fM9BmhtXvHs8onqk6
+  user_id:  user_2vXmyIihp8BWpJTDcIriIWHVvXt
+  phone_number:  +9647823025480
+}
+
+الزوبعي
+أسامة عادل فياض
+{                 *** DONE ***
+  driver_doc_id: LKWIgaLhJHqMMRN6vph5
+  user_doc_id:  Fc9k00J4Y1x4vK0R1E3j
+  user_id:  user_2vXqCvHhmVVXvA6YNWtGGDLRUuW
+  phone_number:  +964 7713372500
+}
+
+العيساوي
+مدحت هادي مهيدي
+{                 *** DONE ***
+  driver_doc_id: PDQychaexMLrOy9snNap
+  user_doc_id:  GL9ukLeQRP9tUsBb4yPS
+  user_id:  user_2vXqSsBo06ZZKJN42oGIlFYEaF2
+  phone_number:  +9647512994754       
+}
+
+الصالحي
+قيس يحيى
+{                   *** DONE ***     
+  driver_doc_id: SZwJwDbqLARGygHcJbvc
+  user_doc_id:  RZjLyF0tiQyvWULZxm8e
+  user_id:  user_2vXqjkdVQRR1QooG56uRRDJysIN
+  phone_number:  +9647902730234    
+}
+
+السعداني
+حسن أحمد حسن العرسان
+{                     *** DONE ***
+  driver_doc_id: Uieu1moGORTSByqY4Rba
+  user_doc_id:  Wo9tDL4XRrFyWA9vx01L
+  user_id:  user_2vXqzOgRjMkv5UaQnwDcznz9zJl
+  phone_number:  +9647506245878
+}
+
+العلواني
+عبدالله غسان
+{              *** DONE ***   
+  driver_doc_id: fy0s4eiROq24dh6QrOoX
+  user_doc_id:  8Aos5Js3q1C07g5ZGD3j
+  user_id:  user_2vXrAss8VynOzNLIArRrPUxyIzk
+  phone_number:  +964 7509049594    
+}
+
+العكيدي
+حسام حسين علاوي
+{                   *** DONE ***  
+  driver_doc_id: i6lNI5ab015S0CtBaKdJ
+  user_doc_id:  ms1d0jMmF2ZfszXMV3vg
+  user_id:  user_2vXrb9Wo7qQMrnPfAWxKNDq4Aq1
+  phone_number:  +9647505763260
+}
+
+العلواني
+عزيز عدنان
+{                   *** DONE ***
+  driver_doc_id: mupBL4gQ38xiGTrBTcZw
+  user_doc_id:  sXFMIPjMQGwnMYV4CYUP
+  user_id: user_2vXrovlSvcplOLmWRyqT414NSdc
+  phone_number:  +9647515600377
+}
+
+البدراني
+عمر هاشم محمود
+{                   *** DONE ***
+  driver_doc_id: o668Z3QCDMVsn7w5oziX
+  user_doc_id:  Oqv1kHZsQqUtqoYlf7Zv
+  user_id: user_2vXs1L9hWiz06PHX1YJdbmPKc11
+  phone_number:  +9647809436049
+}
+
+البياتي
+عمر عصام عبد الرزاق
+{               *** DONE ***            
+  driver_doc_id: pApvvtAU1jxNhFjTjMew
+  user_doc_id:  NJwaAS3u3BvnsWk8K2Ap
+  user_id: user_2vXsDW9mqZmfg9qfonC3UM3wAUQ
+  phone_number:  +964 7706074222
+}
+
+
+*/

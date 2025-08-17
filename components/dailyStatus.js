@@ -1,33 +1,43 @@
-import React,{useState,useEffect} from 'react'
+import React,{useState,useEffect,useRef} from 'react'
 import { useGlobalState } from '../globalState'
-import { writeBatch, collection, getDocs, doc,query, where } from 'firebase/firestore'
+import { GoogleMap,Marker,InfoWindow  } from "@react-google-maps/api"
+import Image from 'next/image'
+import driverImage from '../images/trusted_driver.png'
+import { writeBatch, collection, getDocs,doc,onSnapshot,query, where } from 'firebase/firestore'
 import { DB } from '../firebaseConfig'
 import { Modal,DatePicker  } from "antd"
 import dayjs from 'dayjs'
 import { FiPlusSquare } from "react-icons/fi"
+import { BsArrowLeftShort } from "react-icons/bs"
+import { MdCheckCircle } from "react-icons/md"
+import { IoMdCloseCircle } from "react-icons/io"
 
 const DailyStatus = () => {
-    const { drivers } = useGlobalState()
+    const mapRef = useRef(null)
+    let animatedDriverLocation = useRef(null)
+    const { drivers,lines,intercityTrips } = useGlobalState()
 
-    const [driverNameFilter, setDriverNameFilter] = useState('')
-    const [lineState, setLineState] = useState('')
-    const [selectedStartTime, setSelectedStartTime] = useState('')
-    const [selectedDriver, setSelectedDriver] = useState(null)
-    const [isOpeningDriverHistoryModal,setIsOpeningDriverHistoryModal] = useState(false)
     const [todayDate, setTodayDate] = useState("")
-    const [todayIndex, setTodayIndex] = useState(null)
-    const [yearMonthKey, setYearMonthKey] = useState('')
-    const [dayKey, setDayKey] = useState('')
-    const [openDriverIds, setOpenDriverIds] = useState([])
-    const [selectedDate, setSelectedDate] = useState(new Date());
-    const [selectedTrackingLines, setSelectedTrackingLines] = useState([]);
-    const [journeyStarted, setJourneyStarted] = useState(false);
-
+    const [selectedTab, setSelectedTab] = useState('lines')
+    const [lineNameFilter, setLineNameFilter] = useState('')
+    const [lineDriverName,setLineDriverName] = useState('')
+    const [lineStartTime,setLineStartTime] = useState('')
+    const [lineEndTime,setLineEndTime] = useState('')
+    const [lineStatus,setLineStatus] = useState('')
+    const [selectedLine,setSelectedLine] = useState(null)
+    const [tripStartPoint,setTripStartPoint] = useState('')
+    const [tripEndPoint,setTripEndPoint] = useState('')
+    const [tripDriver,setTripDriver] = useState('')
+    const [tripStartTime,setTripStartTime] = useState('')
+    const [tripStatus, setTripStatus] = useState('')
+    const [selectedTrip,setSelectedTrip] = useState(null)
+    const [lineTripPhase,setLineTripPhase] = useState('first')
+    const [driverLocation, setDriverLocation] = useState(null);
+    const [driverOriginLocation, setDriverOriginLocation] = useState(null);
+   
     // Find the today date
     useEffect(() => {
         const now = new Date();
-        const iraqTime = now.toLocaleString("en-US", { timeZone: "Asia/Baghdad" });
-        const [month, day, year] = iraqTime.split(/[/, ]/);
       
         const formattedDate = now.toLocaleDateString("ar-IQ", {
           weekday: "long",
@@ -37,502 +47,826 @@ const DailyStatus = () => {
         });
       
         setTodayDate(formattedDate);
-        setTodayIndex(now.getDay()); // Sunday = 0
-        setYearMonthKey(`${year}-${month.padStart(2, "0")}`);
-        setDayKey(day.padStart(2, "0"));
-      }, []);
+    }, []);
 
-    // Filter Handlers
-    const handleDriverNameChange = (e) => setDriverNameFilter(e.target.value);
-    const handleLineStateChange = (e) => setLineState(e.target.value);
+    const now = new Date();
+    const yearMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const dayKey = String(now.getDate()).padStart(2, '0');
 
-    // Determine unified line status
-    const getLineUnifiedStatus = (line) => {
-        const hasFirstStart = !!line.first_trip_start_time;
-        const hasFirstFinish = !!line.first_trip_finish_time;
-        const hasSecondStart = !!line.second_trip_start_time;
-        const hasSecondFinish = !!line.second_trip_finish_time;
+    // Get line status
+    const getDriverAndStatus = (line) => {
+        if (!line.driver_id) return { driverName: 'بدون سائق', status: 'لم تبدأ بعد' };
 
-        if (!hasFirstStart && !hasFirstFinish && !hasSecondStart && !hasSecondFinish) return 'line not started';
-        if (hasFirstStart && !hasFirstFinish && !hasSecondStart && !hasSecondFinish) return 'first trip started';
-        if (hasFirstStart && hasFirstFinish && !hasSecondStart && !hasSecondFinish) return 'first trip finished';
-        if (hasFirstStart && hasFirstFinish && hasSecondStart && !hasSecondFinish) return 'second trip started';
-        if (hasFirstStart && hasFirstFinish && hasSecondStart && hasSecondFinish) return 'second trip finished';
-        if (hasFirstStart && hasFirstFinish && !hasSecondStart && hasSecondFinish) return 'second trip canceled';
-        return '--';
-    };
+        const driver = drivers.find((d) => d.id === line.driver_id);
+        if (!driver) return { driverName: 'السائق غير موجود', status: 'لم تبدأ بعد' };
 
-    // Line status in Arabic
-    const getTripArabicNameLine = (status) => {
-        switch (status) {
-            case 'first trip started': return 'رحلة الذهاب بدات';
-            case 'first trip finished': return 'رحلة الذهاب انتهت';
-            case 'second trip started': return 'رحلة العودة بدات';
-            case 'second trip finished': return 'رحلة العودة انتهت';
-            case 'second trip canceled': return 'رحلة العودة الغيت';
-            case 'line not started' : return 'الخط لم يبدأ بعد';
-            default: return '--';
-        }
-    };
-
-    // Color based on rider trip status
-    const getTripClassName = (status) => {
-        if (status === undefined || status === null) {
-          return 'no-rating';
-        }
-        if (status === 'first trip finished' || status === 'second trip finished') {
-          return 'student-at-home';
-        }
-        if (status === 'first trip started' || status === 'second trip started' || status === 'second trip canceled') {
-          return 'in-route';
-        }
-    };
-
-    const uniqueStartTimes = [...new Set(
-        drivers.flatMap((driver) => 
-            driver.line?.flatMap((line) => 
-                line.lineTimeTable
-                    ?.filter(day => day.dayIndex === todayIndex && day.active) // Filter only today's active lines
-                    .map(day => {
-                        const date = day.startTime?.toDate?.();
-                        if (!date) return null;
-                        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-                    })
-            )
-        ).filter(Boolean)
-    )].sort((a, b) => {
-        const [aH, aM] = a.split(':').map(Number);
-        const [bH, bM] = b.split(':').map(Number);
-        return aH * 60 + aM - (bH * 60 + bM);
-    });
-
-    // Filter only drivers who have at least one active line scheduled today
-    const workingDrivers = drivers.filter((driver) => {
-        return driver.line?.some((line) => 
-        line.lineTimeTable?.some((day) => day.dayIndex === todayIndex && day.active)
-        );
-    });
-
-    const getTodayLineById = (driver, lineId) => {
         const todayTracking = driver.dailyTracking?.[yearMonthKey]?.[dayKey];
-        const todayLines = todayTracking?.today_lines || [];
-        const finishedLines = todayTracking?.finished_lines || [];
-      
-        // First check finished_lines
-        const inFinished = finishedLines.find((line) => line.id === lineId);
-        if (inFinished) return { ...inFinished, from: 'finished' };
-      
-        // Otherwise check today_lines
-        const inToday = todayLines.find((line) => line.id === lineId);
-        if (inToday) return { ...inToday, from: 'today' };
-      
-        return null;
-    };
+        const lineTracking = todayTracking?.today_lines?.find((l) => l.id === line.id);
 
-    const groupedDrivers = workingDrivers.map((driver) => {
-        const todayTracking = driver.dailyTracking?.[yearMonthKey]?.[dayKey];
-        const hasStarted = !!todayTracking?.start_the_journey;
-      
-        const lines = [];
-      
-        const allTodayLines = driver.line?.filter((line) => {
-            return line.lineTimeTable?.some((d) => d.dayIndex === todayIndex && d.active)
-        }) || [];
-      
-        for (const baseLine of allTodayLines) {
-            const todaySchedule = baseLine.lineTimeTable.find((d) => d.dayIndex === todayIndex && d.active)
-            if (!todaySchedule) continue;
-      
-            const startTimeDate = todaySchedule.startTime?.toDate?.();
-            const formattedStartTime = startTimeDate
-                ? `${String(startTimeDate.getHours()).padStart(2, "0")}:${String(startTimeDate.getMinutes()).padStart(2, "0")}`
-                : null;
-      
-            // Optional filters
-            if (selectedStartTime && formattedStartTime !== selectedStartTime) continue;
-      
-            // === Pull actual tracking status if available
-            let statusLine = null;
-            if (hasStarted) {
-                statusLine = getTodayLineById(driver, baseLine.id);
-            }
-      
-            const unifiedStatus = statusLine ? getLineUnifiedStatus(statusLine) : 'line not started';
+        // Logic to determine status
+        if (!lineTracking) return { driverName: driver.full_name,driverFName:driver.family_name, status: 'لم تبدأ بعد' };
 
-            // Late detection logic
-            const now = new Date();
-            const isLate = startTimeDate && now > startTimeDate && (
-                !hasStarted || unifiedStatus === 'line not started'
-            );
+        const firstTripStarted = lineTracking.first_phase?.phase_started;
+        const firstTripFinished = lineTracking.first_phase?.phase_finished;
+        const secondTripStarted = lineTracking.second_phase?.phase_started;
+        const secondTripFinished = lineTracking.second_phase?.phase_finished;
 
-            // Action timestamps (if available)
-            const actionTimes = {
-                first_trip_started: statusLine?.first_trip_start_time || null,
-                first_trip_finished: statusLine?.first_trip_finish_time || null,
-                second_trip_started: statusLine?.second_trip_start_time || null,
-                second_trip_finished: statusLine?.second_trip_finish_time || null,
-                second_trip_canceled: statusLine?.second_trip_finish_time || null,
-            };
-          
-            lines.push({
-                ...baseLine,
-                unifiedStatus,
-                formattedStartTime,
-                isLate,
-                actionTimes,
-            });
-        }
+        if (secondTripFinished) return { driverName: driver.full_name,driverFName:driver.family_name, status: 'رحلة العودة انتهت' };
+        if (secondTripStarted) return { driverName: driver.full_name,driverFName:driver.family_name, status: 'رحلة العودة بدأت' };
+        if (firstTripFinished) return { driverName: driver.full_name,driverFName:driver.family_name, status: 'رحلة الذهاب انتهت' };
+        if (firstTripStarted) return { driverName: driver.full_name,driverFName:driver.family_name, status: 'رحلة الذهاب بدأت' };
 
-        // Highlight driver if any line is late
-        const isDriverLate = lines.some((line) => line.isLate);
-
-        // ✅ Only return driver if at least one line passes the filter
-        if (lines.length === 0) return null;
-      
-        return {
-          driverId: driver.id,
-          driverName: driver.driver_full_name,
-          driverFName: driver.driver_family_name,
-          hasStarted,
-          isLate: isDriverLate,
-          lines,
-        };
-    }).filter(Boolean);
-      
-    const toggleDriverMenu = (driverId) => {
-        setOpenDriverIds((prev) =>
-            prev.includes(driverId) ? prev.filter((id) => id !== driverId) : [...prev, driverId]
-        )
+        return { driverName: driver.full_name,driverFName:driver.family_name, status: 'لم تبدأ بعد' };
     }
 
-    // Handle open driver-info Modal
-    const openDriverHistoryModal = (driverSummary) => {
-        const fullDriverDoc = drivers.find((d) => d.id === driverSummary.driverId);
-        if (!fullDriverDoc) {
-            console.log("Driver not found in global state");
+    const getLineStatusClass = (status) => {
+        switch (status) {
+            case 'لم تبدأ بعد':
+            return 'trip-not-started';
+            case 'رحلة الذهاب بدأت':
+            case 'رحلة العودة بدأت':
+            return 'trip-started';
+            case 'رحلة الذهاب انتهت':
+            case 'رحلة العودة انتهت':
+            return 'trip-finished';
+            default:
+            return '';
+        }
+    }
+
+    // Filtered lines based on search term
+    const filteredLines = lines.filter((line) => {
+        const { status,driverName } = getDriverAndStatus(line);
+
+        //check line name
+        const matchesName = lineNameFilter === '' || line?.name.includes(lineNameFilter)
+
+        //filter with line driver name
+        const matchesDriverName = lineDriverName === '' || driverName.includes(lineDriverName)
+
+        //render only lines that have driver
+        const matchesDriver = !!line?.driver_id;
+
+        //render lines that have riders
+        const haveRiders = line.riders.length > 0
+
+        // filter by start time
+        const todayIndex = new Date().getDay(); // 0 = Sunday
+        const todaySchedule = line.timeTable?.find(day => day.dayIndex === todayIndex);
+        const isActiveToday = todaySchedule?.active === true;
+        const todayStartTimeObj = line.timeTable?.[todayIndex]?.startTime;
+        const todayEndTimeObj = line.timeTable?.[todayIndex]?.endTime;
+
+        // Extract the hour from the Firestore timestamp
+        let lineStartHour = null;
+        if (todayStartTimeObj?.toDate) {
+            lineStartHour = todayStartTimeObj.toDate().getHours(); // returns number 0–23
+        }
+
+        let lineEndHour = null
+        if (todayEndTimeObj?.toDate) {
+            lineEndHour = todayEndTimeObj.toDate().getHours(); // returns number 0–23
+        }
+
+        // Extract the hour from the input value (lineStartTime is like "08:30")
+        const filterStartHour = lineStartTime ? parseInt(lineStartTime.split(':')[0], 10) : null;
+        const filterEndHour = lineEndTime ? parseInt(lineEndTime.split(':')[0], 10) : null;
+
+        // Compare only the hours
+        const matchesStartTime = lineStartTime === '' || lineStartHour === filterStartHour;
+        const matchesEndTime = lineEndTime === '' || lineEndHour === filterEndHour;
+
+        // filter line status
+        const matchesStatus = lineStatus === '' || lineStatus === status;
+
+        return (
+            matchesName && 
+            matchesDriverName && 
+            matchesDriver && 
+            haveRiders &&
+            isActiveToday &&
+            matchesStartTime && 
+            matchesEndTime && 
+            matchesStatus
+        )
+    });
+
+    const sortedFilteredLines = filteredLines.sort((a, b) => {
+        const todayIndex = new Date().getDay();
+
+        const aStart = a.timeTable?.[todayIndex]?.startTime?.toDate?.();
+        const bStart = b.timeTable?.[todayIndex]?.startTime?.toDate?.();
+
+        // If both have valid start times, compare
+        if (aStart && bStart) {
+            return aStart.getTime() - bStart.getTime(); // ascending
+        }
+
+        // If only one has a start time, prioritize it
+        if (aStart) return -1;
+        if (bStart) return 1;
+
+        return 0; // fallback
+    });
+
+    // Filter by line name
+    const handleLineNameChange = (e) => {
+        setLineNameFilter(e.target.value);
+    };
+
+    // Filter by line destination
+    const handleLineDriverNameChange = (e) => {
+        setLineDriverName(e.target.value);
+    };
+
+    // Filter by line start time
+    const handleLineStartTimeChange = (e) => {
+        setLineStartTime(e.target.value)
+    }
+
+    // Filter by line start time
+    const handleLineEndTimeChange = (e) => {
+        setLineEndTime(e.target.value)
+    }
+
+    // Filter by line status
+    const handleLineStatusChange = (e) => {
+        setLineStatus(e.target.value);
+    }
+
+    const getTripStatus = (trip) => {
+        if (!trip.started) return 'لم تبدأ بعد';
+
+        const riders = trip.riders || [];
+        const allPicked = riders.length > 0 && riders.every(r => r.picked);
+
+        if (allPicked) return 'الرحلة انتهت';
+
+        return 'الرحلة بدات';
+    };
+
+    const getTripStatusClass = (status) => {
+        switch (status) {
+            case 'لم تبدأ بعد':
+                return 'trip-not-started';
+            case 'الرحلة بدات':
+                return 'trip-started';
+            case 'الرحلة انتهت':
+                return 'trip-finished';
+            default:
+                return '';
+        }
+    };
+
+    // Filtered trips based on search term
+    const filteredTrips = intercityTrips.filter((trip) => {
+        const startDateTime = trip?.start_datetime?.toDate?.();
+
+        const tripDate = startDateTime?.toLocaleDateString("ar-IQ", {
+            weekday: "long",
+            day: "2-digit",
+            month: "long",
+            year: "numeric"
+        });
+
+        const tripHour = startDateTime?.getHours(); // 0–23
+        const selectedHour = tripStartTime ? parseInt(tripStartTime.split(':')[0], 10) : null;
+
+        // === Match date ===
+        const matchesDate = todayDate === tripDate;
+
+        // === Match hour only ===
+        const matchesStartTime = tripStartTime === '' || tripHour === selectedHour;
+
+        //filter by trip start point
+        const matchesStart = tripStartPoint === '' || trip?.start_point.includes(tripStartPoint)
+
+        //filter by trip end point
+        const matchesEnd = tripEndPoint === '' || trip?.destination_address.includes(tripEndPoint)
+
+        //filter with trip driver name
+        const matchesDriverName = tripDriver === '' || trip?.driver_name.includes(tripDriver)
+
+        //render only trips that have driver
+        const matchesDriver = !!trip?.driver_id;
+
+        //filter trips based on status
+        const derivedStatus = getTripStatus(trip);
+        const matchesStatus = tripStatus === '' || tripStatus === derivedStatus;
+
+        return (
+            matchesDate &&
+            matchesStartTime &&
+            matchesStart &&
+            matchesEnd &&
+            matchesDriverName &&
+            matchesDriver &&
+            matchesStatus
+        )
+    })
+    
+    // ✅ Sort filtered trips by start_datetime
+    const sortedFilteredTrips = filteredTrips.sort((a, b) => {
+        const aStart = a?.start_datetime?.toDate?.();
+        const bStart = b?.start_datetime?.toDate?.();
+
+        if (aStart && bStart) {
+            return aStart.getTime() - bStart.getTime(); // Ascending
+        }
+
+        if (aStart) return -1;
+        if (bStart) return 1;
+
+        return 0;
+    });
+
+    // Filter by trip start point
+    const handleTripStartPointChange = (e) => {
+        setTripStartPoint(e.target.value)
+    }
+
+    // Filter by trip end point
+    const handleTripEndPointChange = (e) => {
+        setTripEndPoint(e.target.value)
+    }
+
+    // Filter by trip end point
+    const handleTripDriverChange = (e) => {
+        setTripDriver(e.target.value)
+    }
+
+    // Filter by trip start time
+    const handleTripStartTimeChange = (e) => {
+        setTripStartTime(e.target.value)
+    }
+
+    // Filter by trip status
+    const handleTripStatusChange = (e) => {
+        setTripStatus(e.target.value)
+    }
+
+    //Select a line
+    const selectLine = (line) => {
+        const driver = drivers.find((d) => d.id === line.driver_id);
+        const todayTracking = driver?.dailyTracking?.[yearMonthKey]?.[dayKey];
+        const todayLine = todayTracking?.today_lines?.find((l) => l.id === line.id);
+
+        const firstTripStarted = todayLine?.first_phase?.phase_started;
+        const firstTripFinished = todayLine?.first_phase?.phase_finished;
+        const secondTripStarted = todayLine?.second_phase?.phase_started;
+        const secondTripFinished = todayLine?.second_phase?.phase_finished;
+
+        let lineStatus = 'لم تبدأ بعد';
+        if (secondTripFinished) lineStatus = 'رحلة العودة انتهت';
+        else if (secondTripStarted) lineStatus = 'رحلة العودة بدأت';
+        else if (firstTripFinished) lineStatus = 'رحلة الذهاب انتهت';
+        else if (firstTripStarted) lineStatus = 'رحلة الذهاب بدأت';
+
+        setSelectedLine({
+            ...line,
+            driver,
+            todayLine,
+            lineStatus,
+        });
+    }
+
+    const getStatusMessage = (status) => {
+        switch (status) {
+            case 'لم تبدأ بعد':
+                return 'الرحلة لم تبدأ بعد';
+            case 'رحلة الذهاب انتهت':
+                return 'رحلة الذهاب انتهت';
+            case 'رحلة العودة انتهت':
+                return 'رحلة العودة انتهت';
+            default:
+                return 'الرحلة لم تبدأ بعد';
+        }
+    };
+
+    // Handle map load
+    const handleMapLoad = (map) => {
+        mapRef.current = map; // Store the map instance
+    };
+
+   useEffect(() => {
+        let unsubscribeFn;
+
+        const trackDriver = async () => {
+            if (!selectedLine?.driver_id || !mapRef.current) return;
+
+            try {
+                const driverRef = doc(DB, 'drivers', selectedLine.driver_id);
+                const { Marker } = await window.google.maps.importLibrary('marker');
+
+                unsubscribeFn = onSnapshot(driverRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        const newLocation = data.current_location;
+
+                        // Validate coordinates
+                        if (
+                            !newLocation ||
+                            typeof newLocation.latitude !== 'number' ||
+                            typeof newLocation.longitude !== 'number'
+                        ) {
+                            console.warn("Invalid driver location data:", newLocation);
+                            return;
+                        }
+
+                        const latLng = {
+                            lat: newLocation.latitude,
+                            lng: newLocation.longitude,
+                        };
+
+                        // First time: create marker
+                        if (!animatedDriverLocation.current) {
+                            animatedDriverLocation = new Marker({
+                                position: latLng,
+                                map: mapRef.current,
+                                icon: {
+                                    path: window.google.maps.SymbolPath.CIRCLE,
+                                    fillColor: '#3989FC',
+                                    fillOpacity: 1,
+                                    strokeColor: '#fff',
+                                    strokeWeight: 2,
+                                    scale: 6,
+                                },
+                            });
+
+                            //animatedDriverLocation.current = driverMarker;
+                        } else {
+                            // Update existing marker position
+                            animatedDriverLocation.current.setPosition(latLng);
+                            if (!animatedDriverLocation.current.getMap()) {
+                                animatedDriverLocation.current.setMap(mapRef.current);
+                            }
+                        }
+
+                        setDriverLocation(latLng);
+                        checkAndUpdateOriginLocation(newLocation);
+                    }
+                });
+            } catch (error) {
+                console.error("Error setting up driver tracking:", error);
+            }
+        };
+
+        trackDriver();
+
+        return () => {
+            if (unsubscribeFn) unsubscribeFn();
+            if (animatedDriverLocation.current) {
+                animatedDriverLocation.current.setMap(null);
+                animatedDriverLocation.current = null;
+            }
+        };
+    }, [selectedLine?.driver_id,mapRef.current]);
+
+    let lastOriginUpdateTime = Date.now();
+
+    const checkAndUpdateOriginLocation = (currentLocation) => {
+        if (!driverOriginLocation) {
+            setDriverOriginLocation(currentLocation);
             return;
         }
-        setSelectedDriver(fullDriverDoc)
-        setIsOpeningDriverHistoryModal(true)
-    }
 
-    // Close driver-info Modal
-    const handleCloseDriverHistoryModal = () => {
-        setSelectedDriver(null)
-        setSelectedDate(new Date())
-        setSelectedTrackingLines([])
-        setJourneyStarted(false)
-        setIsOpeningDriverHistoryModal(false)
-    }
+        const now = Date.now();
+        if (now - lastOriginUpdateTime < 30000) return;
 
-    useEffect(() => {
-        if (!selectedDriver || !selectedDate) return;
-    
-        const fetchDriverTracking = async () => {
-            const iraqTime = new Date(selectedDate.toLocaleString("en-US", { timeZone: "Asia/Baghdad" }));
-            const year = iraqTime.getFullYear();
-            const month = String(iraqTime.getMonth() + 1).padStart(2, "0");
-            const day = String(iraqTime.getDate()).padStart(2, "0");
-            const yearMonthKey = `${year}-${month}`;
-            const dayKey = day;
-    
-            const driverDoc = selectedDriver; // We already have all data
-            const tracking = driverDoc?.dailyTracking?.[yearMonthKey]?.[dayKey];
-    
-            if (!tracking?.start_the_journey) {
-                setJourneyStarted(false);
-                setSelectedTrackingLines([]);
-                return;
-            }
-    
-            const todayLines = tracking.today_lines || [];
-            const finishedLines = tracking.finished_lines || [];
+        const distance = haversine(driverOriginLocation, currentLocation, { unit: "meter" });
 
-            // ✅ Remove duplicates by checking against today's line ids
-            const todayLineIds = new Set(todayLines.map(line => line.id));
-            const uniqueFinishedLines = finishedLines.filter(line => !todayLineIds.has(line.id));
-    
-            const allLines = [...todayLines, ...uniqueFinishedLines];
-            setJourneyStarted(true);
-            setSelectedTrackingLines(allLines);
-        };
-    
-        fetchDriverTracking();
-    }, [selectedDate, selectedDriver]);
-    
-    // use this to render user data through phone number 
-    const phoneNumber = '+12015550101';
-
-    const findUsersAndRidersByPhone = async () => {
-        try {
-
-            // Query users
-            const userRef = collection(DB, 'users');
-            const userQuery = query(userRef, where('phone_number', '==', phoneNumber));
-            const userSnap = await getDocs(userQuery);
-      
-            const matchedUsers = userSnap.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-      
-            // Query riders
-            const riderRef = collection(DB, 'riders');
-            const riderQuery = query(riderRef, where('phone_number', '==', phoneNumber));
-            const riderSnap = await getDocs(riderQuery);
-      
-            const matchedRiders = riderSnap.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-
-            // Query drivers
-            const driverRef = collection(DB, 'drivers');
-            const driverQuery = query(driverRef, where('driver_phone_number', '==', phoneNumber));
-            const driverSnap = await getDocs(driverQuery);
-      
-            const matcheDrivers = driverSnap.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-      
-            console.log('📱 Matched Users:', matchedUsers);
-            console.log('🎒 Matched Riders:', matchedRiders);
-            console.log('🎒 Matched Drivers:', matcheDrivers);
-      
-            return { users: matchedUsers, riders: matchedRiders, drivers: matcheDrivers };
-        } catch (error) {
-            console.error('❌ Error fetching by phone number:', error);
-            return { users: [], riders: [] };
+        if (!isNaN(distance) && distance > 400) {
+            setDriverOriginLocation(currentLocation);
+            lastOriginUpdateTime = now;
         }
     };
-    
-    // Render titles dynamically
-    const renderTitles = () => (
-        <div className='students-section-inner-titles'>
-            <div className='students-section-inner-title'>
-                <input 
-                    onChange={handleDriverNameChange} 
-                    value={driverNameFilter}
-                    placeholder='السائق' 
-                    type='text' 
-                    className='students-section-inner-title_search_input'
-                />
-            </div>
 
-            <div style={{flex:4}} className='students-section-inner-title'>
-                <select
-                    onChange={handleLineStateChange}
-                    value={lineState}
-                    style={{width: '200px'}}
-                >
-                    <option value=''>الحالة</option>
-                    <option value='first trip started'> رحلة الذهاب بدات</option>
-                    <option value='first trip finished'>رحلة الذهاب انتهت</option>
-                    <option value='second trip started'>رحلة العودة بدات</option>
-                    <option value='second trip finished'>رحلة العودة انتهت </option>
-                </select>
+    // Handle back action
+    const goBack = () => {
+        if(selectedTab === 'lines') {
+            setSelectedLine(null)
+        } else {
+            setSelectedTrip(null)
+        }
+    }
+      
+    // Toggle between lines or intercity trips
+    const renderToggle = () => (
+        <div className='toggle-between-school-company-container' style={{border:'none',gap:'10px'}}>
+            <div
+                className={`toggle-between-school-company-btn ${selectedTab === 'lines' ? 'active' : ''}`} 
+                onClick={() => setSelectedTab('lines')}
+            >
+                <h5>الخطوط</h5>
+            </div>
+            <div
+                className={`toggle-between-school-company-btn ${selectedTab === 'intercities' ? 'active' : ''}`} 
+                onClick={() => setSelectedTab('intercities')}
+            >
+                <h5>الرحلات بين المدن</h5>
             </div>
         </div>
-    );
-  
-    const renderRows = () => {
-        return groupedDrivers.map((driver, index) => {
-            const isOpen = openDriverIds.includes(driver.driverId);
-            return (
-                <div 
-                    key={index} 
-                    className="driver-block" 
-                    style={{ backgroundColor: driver.isLate ? "#D84040" :  "#fff"}} // light red for late drivers
-                >
+    )
 
-                    {/* Driver header */}
-                    <div className="daily-status-line-single-item">
-                        <div className="single-item-daily-status-header">
-                            <h5
-                                onMouseEnter={(e) => (e.target.style.textDecoration = "underline")} // Add underline on hover
-                                onMouseLeave={(e) => (e.target.style.textDecoration = "none")}
-                                onClick={() => openDriverHistoryModal(driver)}
-                                style={{marginLeft:'10px',cursor:'pointer'}}
-                            >
-                                {driver.driverName} {driver.driverFName}
-                            </h5>
-                            <Modal
-                                title={`${selectedDriver?.driver_full_name} ${selectedDriver?.driver_family_name}`}
-                                open={isOpeningDriverHistoryModal}
-                                onCancel={handleCloseDriverHistoryModal}
-                                centered
-                                footer={null}
-                                styles={{
-                                    mask: { backgroundColor: 'rgba(0, 0, 0, 0.05)' },
-                                    wrapper: { backgroundColor: 'rgba(0, 0, 0, 0.01)' },
-                                    content:{boxShadow:'none'}
-                                }}
-                            >
-                                <div className='driver-history-container'>
-                                    {/* 📅 Date Picker */}
-                                    <DatePicker
-                                        value={dayjs(selectedDate)}
-                                        onChange={(date) => setSelectedDate(date.toDate())}
-                                        format="YYYY-MM-DD"
-                                        allowClear={false}
-                                        className='driver-history-container-calender'
-                                    />
-
-                                    {/* 🚫 Journey not started */}
-                                    {!journeyStarted && (
-                                        <div className='driver-history-container-journey-container'>
-                                            <p className='absent' style={{marginTop:'50px'}}>السائق لم يبدا الرحلة في هذا اليوم</p>
-                                        </div>
-                                        
-                                    )}
-
-                                    {/* ✅ Render lines if journey started */}
-                                    {journeyStarted && selectedTrackingLines.length > 0 && (
-                                        <div className='driver-history-container-journey-container'>
-                                            {selectedTrackingLines.map((line, idx) => (
-                                                <div key={idx} className="driver-history-container-journey-item">
-                                                    <p className='driver-history-container-line-name'>{line.lineName}</p>
-                                                    {line.first_trip_start_time && <p className='in-route'>بدأ رحلة الذهاب: {line.first_trip_start_time}</p>}
-                                                    {line.first_trip_finish_time && <p className='student-at-home'>انتهت رحلة الذهاب: {line.first_trip_finish_time}</p>}
-                                                    {line.second_trip_start_time && <p className='in-route'>بدأ رحلة العودة: {line.second_trip_start_time}</p>}
-                                                    {line.second_trip_finish_time && <p className='student-at-home'>انتهت رحلة العودة: {line.second_trip_finish_time}</p>}
-
-                                                    {/* Optional: Show all picked/dropped riders */}
-                                                    {line.riders?.map((rider, rIndex) => (
-                                                        <p key={rIndex} className='driver-history-container-std-status'>
-                                                            {rider.name}:
-                                                            {rider.picked_up_time && ` صعد في ${rider.picked_up_time}`}{" "}
-                                                            {rider.dropped_off_time && ` - نزل في ${rider.dropped_off_time}`}
-                                                        </p>
-                                                    ))}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </Modal>
-                            <button 
-                                onClick={() => toggleDriverMenu(driver.driverId)}
-                                className="assinged-item-item-delete-button" 
-                            >
-                                <FiPlusSquare size={20}/>
-                            </button>
+    console.log(selectedLine)
+    
+    // Render lines titles
+    const linesTitles = () => (
+        <>
+            {!selectedLine ? (
+                <div className='students-section-inner'>
+                    <div className='students-section-inner-titles'>
+                        <div className='students-section-inner-title' style={{width:'300px'}}>
+                            <input 
+                                onChange={handleLineNameChange} 
+                                value={lineNameFilter}
+                                placeholder='اسم الخط' 
+                                type='text' 
+                                className='students-section-inner-title_search_input'
+                                style={{width:'200px'}}
+                            />
                         </div>
-                        <div>
-                            <h5>{driver.hasStarted ? 'بدأ رحلات اليوم' : 'لم يبدأ رحلات اليوم'}</h5>
-                        </div>            
+                        <div className='students-section-inner-title' style={{width:'300px'}}>
+                            <input 
+                                onChange={handleLineDriverNameChange} 
+                                value={lineDriverName}
+                                placeholder='السائق' 
+                                type='text' 
+                                className='students-section-inner-title_search_input'
+                                style={{width:'200px'}}
+                            />
+                        </div>
+                        <div className='students-section-inner-title' style={{width:'300px'}}>
+                            <input 
+                                onChange={handleLineStartTimeChange} 
+                                value={lineStartTime} 
+                                type='time' 
+                                className='students-section-inner-title_search_input'
+                                style={{width:'100px',marginRight:'5px'}}
+                            />
+                            <label style={{ fontSize: '14px', marginBottom: '4px', display: 'block' }}>بداية الدوام</label>
+                        </div>
+                        <div className='students-section-inner-title' style={{width:'300px'}}>
+                            <input 
+                                onChange={handleLineEndTimeChange} 
+                                value={lineEndTime} 
+                                type='time' 
+                                className='students-section-inner-title_search_input'
+                                style={{width:'100px',marginRight:'5px'}}
+                            />
+                            <label style={{ fontSize: '14px', marginBottom: '4px', display: 'block' }}>نهاية الدوام</label>
+                        </div>
+                        <div className='students-section-inner-title' style={{width:'200px'}}>
+                            <select
+                                onChange={handleLineStatusChange}
+                                value={lineStatus}
+                            >
+                                <option value=''>الحالة</option>
+                                <option value='لم تبدأ بعد'>لم تبدأ بعد</option>
+                                <option value='رحلة الذهاب بدأت'>رحلة الذهاب بدأت</option>
+                                <option value='رحلة الذهاب انتهت'>رحلة الذهاب انتهت</option>
+                                <option value='رحلة العودة بدأت'>رحلة العودة بدأت</option>
+                                <option value='رحلة العودة انتهت'>رحلة العودة انتهت </option>
+                            </select>
+                        </div>
                     </div>
-      
-                    {/* Expandable lines */}
-                    {isOpen && driver.lines.length > 0 && (
-                        <div className="driver-lines">
-                            {driver.lines.map((line, idx) => (
-                                <div 
-                                    key={idx} 
-                                    className="daily-status-line-single-item"
-                                    //style={{backgroundColor: line.isLate ? '#e96c6c' : 'transparent'}}
-                                >
-                                    <div>
-                                        <h5 style={{minWidth:'140px',border: line.isLate ?'1px solid #fff' : '1px solid #955BFE',borderRadius:'5px'}}>
-                                            {line.lineName} - {line.formattedStartTime}
-                                        </h5>
+                    <div className='all-items-list'>
+                        {sortedFilteredLines.map((line,index) => {
+                            const { status,driverName,driverFName } = getDriverAndStatus(line);
+    
+                            // Get today’s start time from timetable (optional enhancement)
+                            const today = new Date().getDay(); // 0=Sunday
+                            const startTimeObj = line.timeTable?.[today]?.startTime;
+                            const endTimeObj = line.timeTable?.[today]?.endTime;
+
+                            const startTime = startTimeObj?.toDate?.().toLocaleTimeString('en-EG', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: false
+                            }) || '--';
+
+                            const endTime = endTimeObj?.toDate?.().toLocaleTimeString('en-EG', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: false
+                            }) || '--';
+
+                            return(
+                                <div key={index} onClick={() => selectLine(line)} className='single-item'>
+                                    <div style={{width:'320px'}}>
+                                        <h5>{line.name}</h5>
                                     </div>
-                                    <div>
-                                        {line.unifiedStatus === 'first trip started' && (
-                                            <h5 
-                                                className={getTripClassName(line.unifiedStatus)}
-                                                style={{marginRight:'7px'}}
-                                            >
-                                                {line.actionTimes.first_trip_started}
-                                            </h5>
-                                        )}
-
-                                        {line.unifiedStatus === 'first trip finished' && (
-                                            <h5 
-                                                className={getTripClassName(line.unifiedStatus)}
-                                                style={{marginRight:'7px'}}
-                                            >
-                                                {line.actionTimes.first_trip_finished}
-                                            </h5>
-                                        )}
-
-                                        {line.unifiedStatus === 'second trip started' && (
-                                            <h5 
-                                                className={getTripClassName(line.unifiedStatus)}
-                                                style={{marginRight:'7px'}}
-                                            >
-                                                {line.actionTimes.second_trip_started}
-                                            </h5>
-                                        )}
-                           
-                                        {line.unifiedStatus === 'second trip finished' && (
-                                            <h5 
-                                                className={getTripClassName(line.unifiedStatus)}
-                                                style={{marginRight:'7px'}}
-                                            >
-                                                {line.actionTimes.second_trip_finished}
-                                            </h5>
-                                        )}
-
-                                        {line.unifiedStatus === 'second trip canceled' && (
-                                            <h5 
-                                                className={getTripClassName(line.unifiedStatus)}
-                                                style={{marginRight:'7px'}}
-                                            >
-                                                {line.actionTimes.second_trip_canceled}
-                                            </h5>
-                                        )}
-
-                                        <h5 className={getTripClassName(line.unifiedStatus)}>
-                                            {getTripArabicNameLine(line.unifiedStatus)}
-                                        </h5>
+                                    <div style={{width:'320px'}}>
+                                        <h5>{driverName} {' '} {driverFName}</h5>
+                                    </div>
+                                    <div style={{width:'320px'}}>
+                                        <h5>{startTime}</h5>
+                                    </div>
+                                    <div style={{width:'320px'}}>
+                                        <h5>{endTime}</h5>
+                                    </div>
+                                    <div style={{width:'200px'}}>
+                                        <h5 className={getLineStatusClass(status)}>{status}</h5>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                            )
+                        })}
+                    </div>
                 </div>
-            );
-        });
-    };
-      
+            ) : (
+                <div className="item-detailed-data-container">
+                    <div className='item-detailed-data-header'>
+                        <div className='item-detailed-data-header-title' style={{gap:'7px'}}>
+                            <h5>{selectedLine.id}</h5>
+                            <h5>-</h5>
+                            <h5>{selectedLine.destination}</h5>
+                            <h5>-</h5>
+                            <h5>{selectedLine.name || '-'}</h5>
+                        </div>
+                        <button className="info-details-back-button" onClick={goBack}>
+                            <BsArrowLeftShort size={24}/>
+                        </button>
+                    </div>
+                    <div className="item-detailed-data-main">
+                        <div className="student-detailed-data-main-firstBox">
+                            <div className="item-detailed-data-main-firstBox-line-students" style={{flexDirection:'column'}}>
+                                <div className='toggle-between-school-company-container' style={{border:'none',gap:'10px',marginBottom:'10px'}}>
+                                    <div
+                                        className={`toggle-between-school-company-btn ${lineTripPhase === 'first' ? 'active' : ''}`} 
+                                        onClick={() => setLineTripPhase('first')}
+                                    >
+                                        <h5>رحلة الذهاب</h5>
+                                    </div>
+                                    <div
+                                        className={`toggle-between-school-company-btn ${lineTripPhase === 'second' ? 'active' : ''}`} 
+                                        onClick={() => setLineTripPhase('second')}
+                                    >
+                                        <h5>رحلة العودة</h5>
+                                    </div>
+                                </div>
+                                {lineTripPhase === 'first' ? (
+                                    <div className= "line-student-dropdown-open" style={{height:'53vh'}}>
+                                        {selectedLine?.todayLine?.first_phase?.phase_started ? (
+                                            <>
+                                                <div className='trip-dropdown-item'>
+                                                    <h5>بدا الرحلة</h5>
+                                                    <h5 style={{fontWeight:'bold'}}>{selectedLine?.todayLine?.first_phase?.phase_starting_time}</h5>
+                                                </div>
+                                                <div className='trip-dropdown-item'>
+                                                    <h5>الوصول للوجهة</h5>
+                                                    <h5 style={{fontWeight:'bold'}}>{selectedLine?.todayLine?.first_phase?.phase_finishing_time ||'--'}</h5>
+                                                </div>
+                                                <div className= "line-student-dropdown-open-riders-list">
+                                                {selectedLine?.todayLine?.first_phase?.riders.map((rider) => (
+                                                    <div key={rider.id} className='trip-dropdown-item'>
+                                                        <h5>{rider.name} {rider.family_name}</h5>
+                                                        <h5>-</h5>
+                                                        <h5>{rider.phone_number}</h5>
+                                                        <h5>-</h5>
+                                                        <h5>{rider.id}</h5>     
+                                                        {rider.checked_at_home && (
+                                                            <>
+                                                                <h5>-</h5>
+                                                                <h5 style={{fontWeight:'bold'}}>{rider.picked_up_time}</h5>
+                                                            </>                                                    
+                                                        )}                                           
+                                                        {rider.picked_up && (
+                                                            <MdCheckCircle size={22} color='#328E6E'/>  
+                                                        )} 
+                                                        {rider.checked_at_home && !rider.picked_up && (
+                                                            <IoMdCloseCircle size={22} color='#D64545'/>
+                                                        )}                                                 
+                                                    </div>
+                                                ))}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <h5 className="no-students">الرحلة لم تبدا</h5>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className= "line-student-dropdown-open" style={{height:'53vh'}}>
+                                        {selectedLine?.todayLine?.second_phase?.phase_started ? (
+                                            <>
+                                                {selectedLine?.todayLine?.second_phase?.riders.map((rider) => (
+                                                    <div key={rider.id} className='trip-dropdown-item'>
+                                                        <h5>{rider.name} {rider.family_name}</h5>
+                                                        <h5>-</h5>
+                                                        <h5>{rider.phone_number}</h5>
+                                                        <h5>-</h5>
+                                                        <h5>{rider.id}</h5>
+                                                        {rider.dropped_off && (
+                                                            <MdCheckCircle size={22} color='green'/>  
+                                                        )} 
+                                                    </div>
+                                                ))}
+                                            </>
+                                        ) : (
+                                            <h5 className="no-students">الرحلة لم تبدا</h5>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="item-detailed-data-main-second-box">
+                            {((lineTripPhase === 'first' && selectedLine.lineStatus === 'رحلة الذهاب بدأت') ||
+                             (lineTripPhase === 'second' && selectedLine.lineStatus === 'رحلة العودة بدأت')) && selectedLine.driver?.current_location ? (
+                                <div>
+                                    <GoogleMap
+                                        mapContainerStyle={{ width: "450px", height: "400px" }}
+                                        center={{
+                                            lat: selectedLine.driver?.current_location?.latitude,
+                                            lng: selectedLine.driver?.current_location?.longitude
+                                        }}
+                                        zoom={14}
+                                        onLoad={handleMapLoad}
+                                    >
+
+                                        {/* Render Riders */}
+                                        {selectedLine.lineStatus === 'رحلة الذهاب بدأت' &&
+                                            Array.isArray(selectedLine?.todayLine?.first_phase?.riders) &&
+                                            selectedLine?.todayLine?.first_phase?.riders?.map((r) => (
+                                                <Marker
+                                                    key={r.id}
+                                                    position={{ 
+                                                        lat: r.home_location?.latitude, 
+                                                        lng: r.home_location?.longitude 
+                                                    }}
+                                                    icon={{
+                                                        url: r.picked_up
+                                                            ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+                                                            : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                                                    }}
+                                                />
+                                            ))
+                                        }
+
+                                        {selectedLine.lineStatus === 'رحلة الذهاب بدأت' &&
+                                            <Marker
+                                                position={{
+                                                    lat: selectedLine?.todayLine?.first_phase?.destination_location?.latitude,
+                                                    lng: selectedLine?.todayLine?.first_phase?.destination_location?.longitude
+                                                }}
+                                                icon={{
+                                                    url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+                                                }}
+                                            />
+                                        }
+
+                                        {selectedLine.lineStatus === 'رحلة العودة بدأت' &&
+                                            Array.isArray(selectedLine?.todayLine?.second_phase?.riders) &&
+                                            selectedLine?.todayLine?.second_phase?.riders?.map((r) => (
+                                                <Marker
+                                                    key={r.id}
+                                                    position={{ 
+                                                        lat: r.home_location.latitude, 
+                                                        lng: r.home_location.longitude 
+                                                    }}
+                                                    icon={{
+                                                        url: r.dropped_off
+                                                            ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+                                                            : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                                                    }}
+                                                />
+                                            ))
+                                        }
+                                    </GoogleMap>
+                                </div>
+                            ) : (
+                                <div>
+                                    <Image
+                                        src={driverImage}
+                                        width={200}
+                                        height={200}
+                                        alt="Driver is not moving"
+                                    />
+                                    <h5 style={{ textAlign: 'center', marginTop: '10px' }}>
+                                        {getStatusMessage(selectedLine.lineStatus)}
+                                    </h5>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    )
+
+    // Render trips titles
+    const tripsTitles = () => (
+        <>
+           <div className='students-section-inner'>
+                <div className='students-section-inner-titles'>
+                    <div className='students-section-inner-title' style={{width:'300px'}}>
+                        <input 
+                            onChange={handleTripStartPointChange} 
+                            value={tripStartPoint}
+                            placeholder='نقطة الانطلاق' 
+                            type='text' 
+                            className='students-section-inner-title_search_input'
+                            style={{width:'200px'}}
+                        />
+                    </div>
+                    <div className='students-section-inner-title' style={{width:'300px'}}>
+                        <input 
+                            onChange={handleTripEndPointChange} 
+                            value={tripEndPoint}
+                            placeholder='نقطة الوصول' 
+                            type='text' 
+                            className='students-section-inner-title_search_input'
+                            style={{width:'200px'}}
+                        />
+                    </div>
+                    <div className='students-section-inner-title' style={{width:'300px'}}>
+                        <input 
+                            onChange={handleTripDriverChange} 
+                            value={tripDriver}
+                            placeholder='السائق' 
+                            type='text' 
+                            className='students-section-inner-title_search_input'
+                            style={{width:'200px'}}
+                        />
+                    </div>
+                    <div className='students-section-inner-title' style={{width:'300px'}}>
+                        <input 
+                            onChange={handleTripStartTimeChange} 
+                            value={tripStartTime} 
+                            type='time' 
+                            className='students-section-inner-title_search_input'
+                            style={{width:'100px',marginRight:'5px'}}
+                        />
+                        <label style={{ fontSize: '14px', marginBottom: '4px', display: 'block' }}>توقيت الانطلاق</label>
+                    </div>
+                    <div className='students-section-inner-title' style={{width: '200px'}}>
+                        <select
+                            onChange={handleTripStatusChange}
+                            value={tripStatus}
+                        >
+                            <option value=''>الحالة</option>
+                            <option value='لم تبدأ بعد'>لم تبدأ بعد</option>
+                            <option value='الرحلة بدات'>الرحلة بدات</option>
+                            <option value='الرحلة انتهت'>الرحلة انتهت</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div className='all-items-list'>
+                {sortedFilteredTrips.map((trip,index) => {
+                    const status = getTripStatus(trip);
+                    const startTime = trip?.start_datetime?.toDate?.().toLocaleTimeString('en-EG', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                    }) || '--';
+
+                    return(
+                        <div key={index} onClick={() => setSelectedTrip(trip)} className='single-item'>
+                            <div style={{width:'320px'}}>
+                                <h5>{trip.start_point}</h5>
+                            </div>
+                            <div style={{width:'320px'}}>
+                                <h5>{trip.destination_address}</h5>
+                            </div>
+                            <div style={{width:'320px'}}>
+                                <h5>{trip.driver_name}</h5>
+                            </div>
+                            <div style={{width:'320px'}}>
+                                <h5>{startTime}</h5>
+                            </div>
+                            <div style={{width:'200px'}}>
+                                <h5 className={getTripStatusClass(status)}>{status}</h5>
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+        </>
+    )
+        
     return (
         <div className='white_card-section-container'>
             <div>
-                
-                <div className='line-calender-box'>
-                    <div className='line-calender-box-dayDate'>
-                        <p style={{fontSize:'15px'}}>{todayDate}</p>
-                    </div>
-                    <div className='line-calender-box-dayTime'>
-                        {/* Time buttons */}
-                        <div className='line-start-times'> 
-                            {uniqueStartTimes.map((time,index) => (
-                                <button
-                                    key={index}
-                                    className={`students-or-driver-btn ${selectedStartTime === time ? 'active' : ''}`}
-                                    onClick={() => setSelectedStartTime(time === selectedStartTime ? '' : time)}
-                                >
-                                    {time}
-                                </button>
-                            ))}
+                {!selectedLine && !selectedTrip && (
+                    <div className='line-calender-box'>
+                        <div className='line-calender-box-dayDate'>
+                            <p style={{fontSize:'15px'}}>{todayDate}</p>
                         </div>
-                        {/* Clear filter button */}
-                        <button
-                            className={`students-or-driver-btn ${selectedStartTime === '' ? 'active' : ''}`}
-                            onClick={() => setSelectedStartTime('')}
-                            style={{fontWeight:'bold'}}
-                        >
-                            عرض الكل
-                        </button>
+                        {renderToggle()}
                     </div>
-                </div>
-
-                {renderTitles()}
-                    
-                {renderRows()}
-
+                )}
+                <>
+                    {selectedTab === 'lines' ? (
+                        <>
+                            {linesTitles()}
+                        </>
+                        
+                    ) : (
+                        <>
+                            {tripsTitles()}
+                        </>
+                    )}
+                </>
+                
             </div>
         </div>
     )

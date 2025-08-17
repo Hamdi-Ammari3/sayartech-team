@@ -7,10 +7,10 @@ import './style.css'
 import Navbar from '../components/navBar'
 import Main from '../components/main'
 import DailyStatus from '../components/dailyStatus'
-import TrackingMap from '../components/trackingMap'
-import Connect from '../components/connect'
-import Students from '../components/students'
-import Employees from '../components/employees'
+import AddBalance from '../components/addBalance'
+import Lines from '../components/lines'
+import IntercityTrips from '../components/intercityTrips'
+import Riders from '../components/riders'
 import Drivers from '../components/drivers'
 import Destination from '../components/destination'
 import Email from '../components/email'
@@ -58,14 +58,14 @@ const Dashboard = () => {
         return <Main/>
       case 'الحالة اليومية':
         return <DailyStatus/>
-      case 'متابعة السائقين':
-        return <TrackingMap/>
-      case 'ربط الركاب مع سواق':
-        return <Connect/>
-      case 'الطلاب' :
-        return <Students/>
-      case 'الموظفين':
-        return <Employees/>
+      case 'تعبئة رصيد':
+        return <AddBalance/>
+      case 'الركاب' :
+        return <Riders/>
+      case 'الخطوط':
+        return <Lines/>
+      case 'رحلات بين المدن':
+        return <IntercityTrips/>
       case 'السواق':
         return <Drivers/>
       case 'المؤسسات' :
@@ -102,31 +102,31 @@ const Dashboard = () => {
             </div>
 
             <div
-              onClick={() => handleSectionSelect('متابعة السائقين')}
-              className={activeSection === 'متابعة السائقين' ? 'active':''}
+              onClick={() => handleSectionSelect('تعبئة رصيد')}
+              className={activeSection === 'تعبئة رصيد' ? 'active':''}
             >
-              <h4 >متابعة السائقين</h4>
+              <h4 >تعبئة رصيد</h4>
             </div>
 
             <div
-              onClick={() => handleSectionSelect('ربط الركاب مع سواق')}
-              className={activeSection === 'ربط الركاب مع سواق' ? 'active':''}
+              onClick={() => handleSectionSelect('الركاب')}
+              className={activeSection === 'الركاب' ? 'active':''}
             >
-              <h4 >ربط الركاب مع سواق</h4>
+              <h4 >الركاب</h4>
             </div>
 
             <div
-              onClick={() => handleSectionSelect('الطلاب')}
-              className={activeSection === 'الطلاب' ? 'active':''}
+              onClick={() => handleSectionSelect('الخطوط')}
+              className={activeSection === 'الخطوط' ? 'active':''}
             >
-              <h4 >الطلاب</h4>
+              <h4>الخطوط</h4>
             </div>
 
             <div
-              onClick={() => handleSectionSelect('الموظفين')}
-              className={activeSection === 'الموظفين' ? 'active':''}
+              onClick={() => handleSectionSelect('رحلات بين المدن')}
+              className={activeSection === 'رحلات بين المدن' ? 'active':''}
             >
-              <h4 >الموظفين</h4>
+              <h4>رحلات بين المدن</h4>
             </div>
 
             <div

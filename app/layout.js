@@ -17,8 +17,8 @@ export const metadata = {
 
 export default function RootLayout({children}) {
   return (
-    <html lang="en">
-      <body className={cairo.className} id='app-container'>
+    <html lang="en" className={cairo.className}>
+      <body id='app-container'>
         <GlobalStateProvider>
           {children}
         </GlobalStateProvider> 

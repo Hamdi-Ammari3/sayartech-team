@@ -9,149 +9,73 @@ import { Modal } from "antd"
 
 const Destination = () => {
 
-  const { students,schools,employees,companies,drivers} = useGlobalState()
+  const { destinations,riders,lines} = useGlobalState()
 
-  const [selectedTab, setSelectedTab] = useState('schools')
-  const [schoolNameFilter,setSchoolNameFilter] = useState('')
-  const [companyNameFilter,setCompanyNameFilter] = useState('')
-  const [studentCountSortDirection, setStudentCountSortDirection] = useState(null)
-  const [employeeCountSortDirection, setEmployeeCountSortDirection] = useState(null)
+  const [destinationNameFilter,setDestinationNameFilter] = useState('')
+  const [ridersCountSortDirection, setRidersCountSortDirection] = useState(null)
   const [lineCountSortDirection, setLineCountSortDirection] = useState(null)
-  const [selectedSchool,setSelectedSchool] = useState(null)
-  const [selectedCompany,setSelectedCompany] = useState(null)
-  const [isOpeningSchoolInfoModal,setIsOpeningSchoolInfoModal] = useState(false)
-  const [isOpeningCompanyInfoModal,setIsOpeningCompanyInfoModal] = useState(false)
   const [isOpeningAddingDestinationModal,setIsOpeningAddingDestinationModal] = useState(false)
   const [newDestinationName,setNewDestinationName] = useState('')
-  const [newDestinationLocation,setNewDestinationLocation] = useState('')
   const [isAddingNewSchoolLoading,setIsAddingNewSchoolLoading] = useState(false)
 
-  // Count students for each school
-  const studentCounts = students.reduce((acc, student) => {
-    acc[student.destination] = (acc[student.destination] || 0) + 1;
+  // Count riders for each B2B destination
+  const ridersCounts = riders.reduce((acc, rider) => {
+    acc[rider.destination] = (acc[rider.destination] || 0) + 1;
     return acc;
   }, {});
 
-   // Count employees for each company
-   const employeeCounts = employees.reduce((acc, employee) => {
-    acc[employee.destination] = (acc[employee.destination] || 0) + 1;
-    return acc;
-  }, {});
-
-  // Count lines for each school
-  const lineCounts = drivers.reduce((acc, driver) => {
-    driver.line.forEach((line) => {
-      const destination = line.line_destination;
-      if (destination) {
-        acc[destination] = (acc[destination] || 0) + 1;
-      }
-    });
+  // Count riders for each B2B line
+  const linesCounts = lines.reduce((acc, line) => {
+    acc[line.destination] = (acc[line.destination] || 0) + 1;
     return acc;
   }, {});
 
   // Add student count to each school
-  const enrichedSchools = schools.map((school) => ({
-    ...school,
-    studentCount: studentCounts[school.name] || 0,
-    lineCount: lineCounts[school.name] || 0,
+  const enrichedDestination = destinations.map((destination) => ({
+    ...destination,
+    ridersCounts: ridersCounts[destination.name] || 0,
+    linesCount: linesCounts[destination.name] || 0,
   }));
 
-   // Add employees count to each company
-   const enrichedCompanies = companies.map((company) => ({
-    ...company,
-    employeeCount: employeeCounts[company.name] || 0,
-    lineCount: lineCounts[company.name] || 0,
-  }));
-
-  // Filter schools based on search term and contract type
-  const filteredSchools = enrichedSchools.filter((school) => {
-    const matchesName = school.name.includes(schoolNameFilter)
-    return matchesName
-  });
-
-  // Filter companies based on name
-  const filteredCompanies = enrichedCompanies.filter((company) => {
-    const matchesName = company.name.includes(companyNameFilter)
+  // Filter schools based on search term
+  const filteredDestinations = enrichedDestination.filter((destination) => {
+    const matchesName = destination.name.includes(destinationNameFilter)
     return matchesName
   });
 
   // Sort schools by student count
-  const sortedSchools = filteredSchools.sort((a, b) => {
-    if (studentCountSortDirection === 'asc') return a.studentCount - b.studentCount;
-    if (studentCountSortDirection === 'desc') return b.studentCount - a.studentCount;
-    if (lineCountSortDirection === 'asc') return a.lineCount - b.lineCount;
-    if (lineCountSortDirection === 'desc') return b.lineCount - a.lineCount;
-    return 0;
-  });
-
-  // Sort companies by employee count
-  const sortedCompanies = filteredCompanies.sort((a, b) => {
-    if (employeeCountSortDirection === 'asc') return a.employeeCount - b.employeeCount
-    if (employeeCountSortDirection === 'desc') return b.employeeCount - a.employeeCount
-    if (lineCountSortDirection === 'asc') return a.lineCount - b.lineCount
-    if (lineCountSortDirection === 'desc') return b.lineCount - a.lineCount
+  const sortedDestination = filteredDestinations.sort((a, b) => {
+    if (ridersCountSortDirection === 'asc') return a.ridersCounts - b.ridersCounts;
+    if (ridersCountSortDirection === 'desc') return b.ridersCounts - a.ridersCounts;
+    if (lineCountSortDirection === 'asc') return a.linesCount - b.linesCount;
+    if (lineCountSortDirection === 'desc') return b.linesCount - a.linesCount;
     return 0;
   });
 
   // Handle name input change
   const handleSearchChange = (event) => {
-    if(selectedTab === 'schools') {
-      setSchoolNameFilter(event.target.value);
-    } else if(selectedTab === 'companies') {
-      setCompanyNameFilter(event.target.value);
-    };
+    setDestinationNameFilter(event.target.value);
   };
 
   // Handle sorting by highest student count
   const handleSortByHighestStudentCount = () => {
-    setStudentCountSortDirection('desc');
+    setRidersCountSortDirection('desc');
   };
 
   // Handle sorting by lowest student count
   const handleSortByLowestStudentCount = () => {
-    setStudentCountSortDirection('asc');
+    setRidersCountSortDirection('asc');
   };
 
-  // Handle sorting by highest employees count
-  const handleSortByHighestEmployeesCount = () => {
-    setEmployeeCountSortDirection('desc')
-  };
-  
-  // Handle sorting by lowest employees count
-  const handleSortByLowestEmployeesCount = () => {
-    setEmployeeCountSortDirection('asc')
-  };
-
-  // Handle sorting by line count
+  // Handle sorting by highest line count
   const handleSortByHighestLineCount = () => {
     setLineCountSortDirection('desc');
   };
 
+  // Handle sorting by lowest line count
   const handleSortByLowestLineCount = () => {
     setLineCountSortDirection('asc');
   };
-
-  const openSchoolInfoModal = (school) => {
-    setSelectedSchool(school)
-    setIsOpeningSchoolInfoModal(true)
-  }
-
-  const closeSchoolInfoModal = () => {
-    setSelectedSchool(null)
-    setIsOpeningSchoolInfoModal(false)
-  }
-
-  // Open company info modal
-  const openCompanyInfoModal = (company) => {
-    setSelectedCompany(company)
-    setIsOpeningCompanyInfoModal(true)
-  }
-  
-  // Close company info modal
-  const closeCompanyInfoModal = () => {
-    setSelectedCompany(null)
-    setIsOpeningCompanyInfoModal(false)
-  }
 
   // Open adding new school modal
   const openAddNewDestinationModal = () => {
@@ -165,24 +89,9 @@ const Destination = () => {
 
   // Adding new School data
   const addNewDestinationHandler = async() => {
-    if (!newDestinationName || !newDestinationLocation) {
-      alert("يرجى إدخال الاسم و الموقع");
+    if (!newDestinationName) {
+      alert("يرجى إدخال الاسم");
       return;
-    }
-
-    // Extract latitude and longitude
-    const coordsArray = newDestinationLocation.split(",");
-    if (coordsArray.length !== 2) {
-      alert("الرجاء إدخال إحداثيات صحيحة بصيغة (latitude, longitude)");
-      return;
-    }
-
-    const latitude = parseFloat(coordsArray[0].trim());
-    const longitude = parseFloat(coordsArray[1].trim());
-
-    if (isNaN(latitude) || isNaN(longitude)) {
-        alert("الرجاء إدخال إحداثيات صحيحة بصيغة (latitude, longitude)");
-        return;
     }
 
     setIsAddingNewSchoolLoading(true)
@@ -190,16 +99,10 @@ const Destination = () => {
     try {
       const newDestination = {
         name:newDestinationName,
-        latitude:latitude,
-        longitude:longitude
       }
 
-      if (selectedTab === 'schools') {
-        const schoolRef = await addDoc(collection(DB, "schools"), newDestination);
-      } else if (selectedTab === 'companies') {
-        const companyRef = await addDoc(collection(DB, "companies"), newDestination);
-      }      
-
+      await addDoc(collection(DB, "institutions"), newDestination);
+     
       closeAddNewDestinationModal()
 
       alert("تمت إضافة المؤسسة بنجاح");
@@ -210,7 +113,6 @@ const Destination = () => {
     } finally{
       setIsAddingNewSchoolLoading(false)
       setNewDestinationName("");
-      setNewDestinationLocation("");
     }
   }
 
@@ -224,7 +126,7 @@ const Destination = () => {
       </div>
 
       <Modal
-        title={selectedTab === 'schools' ? 'مدرسة جديدة' : 'شركة جديدة'}
+        title={'مؤسسة جديدة'}
         open={isOpeningAddingDestinationModal}
         onCancel={closeAddNewDestinationModal}
         centered
@@ -237,12 +139,6 @@ const Destination = () => {
               placeholder='الاسم'
               value={newDestinationName}
               onChange={(e) => setNewDestinationName(e.target.value)}
-            />
-            <input 
-              type='text' 
-              placeholder='الموقع'
-              value={newDestinationLocation}
-              onChange={(e) => setNewDestinationLocation(e.target.value)}
             />
             {isAddingNewSchoolLoading ? (
               <div style={{ width:'120px',height:'30px',borderRadius:'10px',backgroundColor:'#955BFE',display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -263,38 +159,25 @@ const Destination = () => {
     </>
   )
 
-  // Toggle between school or company
-  const renderToggle = () => (
-    <div className='toggle-between-school-company-container'>
-      <div
-        className={`toggle-between-school-company-btn ${selectedTab === 'companies' ? 'active' : ''}`} 
-        onClick={() => setSelectedTab('companies')}
-      >
-        <h5>الشركات</h5>
-      </div>
-      <div
-        className={`toggle-between-school-company-btn ${selectedTab === 'schools' ? 'active' : ''}`} 
-        onClick={() => setSelectedTab('schools')}
-      >
-        <h5>المدارس</h5>
-      </div>
-    </div>
-  )
-
   // Render school titles
   const renderSchoolTitles = () => (
     <div className='students-section-inner-titles'>
-      <div className='students-section-inner-title'>
+      <div className='students-section-inner-title' style={{width:'350px'}}>
         <input 
           onChange={handleSearchChange}
-          value={schoolNameFilter}
+          value={destinationNameFilter}
           placeholder= 'المدرسة' 
           type='text' 
           className='students-section-inner-title_search_input'
         />
       </div>
-      <div className='students-section-inner-title'>
-        <div className='driver-rating-box'>
+      <div className='students-section-inner-title' style={{width:'350px'}}>
+        <div className='driver-rating-box' style={{justifyContent:'center'}}>
+          <h5>المعرف الخاص</h5>
+        </div>
+      </div>
+      <div className='students-section-inner-title' style={{width:'150px'}}>
+        <div className='driver-rating-box' style={{width:'100px'}}>
           <button onClick={handleSortByLowestLineCount}>
             <FaCaretDown 
               size={18} 
@@ -308,67 +191,18 @@ const Destination = () => {
           </button>
         </div>
       </div>
-      <div className='students-section-inner-title'>
-        <div className='driver-rating-box'>
+      <div className='students-section-inner-title' style={{width:'150px'}}>
+        <div className='driver-rating-box' style={{width:'100px'}}>
           <button onClick={handleSortByLowestStudentCount}>
             <FaCaretDown 
               size={18} 
-              className={studentCountSortDirection === 'asc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}/>
+              className={ridersCountSortDirection === 'asc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}/>
           </button>
           <h5>الطلاب</h5>
           <button onClick={handleSortByHighestStudentCount}>
             <FaCaretUp 
               size={18}
-              className={studentCountSortDirection === 'desc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}/>
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-
-  // Render company titles
-  const renderCompanyTitles = () => (
-    <div className='students-section-inner-titles'>
-      <div className='students-section-inner-title'>
-        <input 
-          onChange={handleSearchChange}
-          value={companyNameFilter}
-          placeholder= 'المؤسسة' 
-          type='text' 
-          className='students-section-inner-title_search_input'
-        />
-      </div>
-      <div className='students-section-inner-title'>
-        <div className='driver-rating-box'>
-          <button onClick={handleSortByLowestLineCount}>
-            <FaCaretDown 
-              size={18} 
-              className={lineCountSortDirection  === 'asc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}
-            />
-          </button>
-          <h5>الخطوط</h5>
-          <button onClick={handleSortByHighestLineCount}>
-            <FaCaretUp 
-              size={18}
-              className={lineCountSortDirection  === 'desc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}
-            />
-          </button>
-        </div>
-      </div>
-      <div className='students-section-inner-title'>
-        <div className='driver-rating-box'>
-          <button onClick={handleSortByLowestEmployeesCount}>
-            <FaCaretDown 
-              size={18} 
-              className={employeeCountSortDirection === 'asc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}
-            />
-          </button>
-          <h5>الموظفين</h5>
-          <button onClick={handleSortByHighestEmployeesCount}>
-            <FaCaretUp 
-              size={18}
-              className={employeeCountSortDirection === 'desc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}
-            />
+              className={ridersCountSortDirection === 'desc' ? 'driver-rating-box-icon-active':'driver-rating-box-icon'}/>
           </button>
         </div>
       </div>
@@ -378,92 +212,31 @@ const Destination = () => {
   // Render rows 
   const renderSchoolRows = () => (
     <div className='all-items-list'>
-      {sortedSchools.map((school, index) => (
+      {sortedDestination.map((dest, index) => (
         <div key={index} className='single-item'>
-          <div>
-            <h5
-              onMouseEnter={(e) => (e.target.style.textDecoration = "underline")}
-              onMouseLeave={(e) => (e.target.style.textDecoration = "none")}
-              onClick={() => openSchoolInfoModal(school)}
-            >
-              {school.name}
-            </h5>
+          <div style={{width:'350px'}}>
+            <h5>{dest.name}</h5>
           </div>
-          <Modal
-            title={selectedSchool?.name}
-            open={isOpeningSchoolInfoModal}
-            onCancel={closeSchoolInfoModal}
-            centered
-            footer={null}
-          >
-            <div className='school-info-modal'>
-              <p>{selectedSchool?.id}</p>
-            </div>
-          </Modal>
-          <div>
-            <h5>{school.lineCount}</h5>
+          <div style={{width:'350px'}}>
+            <h5>{dest.id}</h5>
           </div>
-          <div>
-            <h5>{school.studentCount}</h5>
+          <div style={{width:'150px'}}>
+            <h5>{dest.linesCount}</h5>
+          </div>
+          <div style={{width:'150px'}}>
+            <h5>{dest.ridersCounts}</h5>
           </div>         
         </div>
       ))}
     </div>   
   )
 
-  // Render rows 
-  const renderCompanyRows = () => (
-    <div className='all-items-list'>
-      {sortedCompanies.map((company, index) => (
-        <div key={index} className='single-item'>
-          <div>
-            <h5
-              onMouseEnter={(e) => (e.target.style.textDecoration = "underline")}
-              onMouseLeave={(e) => (e.target.style.textDecoration = "none")}
-              onClick={() => openCompanyInfoModal(company)}
-            >
-              {company.name}
-            </h5>
-          </div>
-          <Modal
-            title={selectedCompany?.name}
-            open={isOpeningCompanyInfoModal}
-            onCancel={closeCompanyInfoModal}
-            centered
-            footer={null}
-            styles={{
-              mask: { backgroundColor: 'rgba(0, 0, 0, 0.01)' },
-              wrapper: { backgroundColor: 'rgba(0, 0, 0, 0.01)' },
-              content:{boxShadow:'none'}
-            }}
-          >
-            <div className='school-info-modal'>
-              <p>{selectedCompany?.id}</p>
-            </div>
-          </Modal>
-          <div>
-            <h5>{company.lineCount}</h5>
-          </div>
-          <div>
-            <h5>{company.employeeCount}</h5>
-          </div> 
-        </div>
-      ))}
-    </div>     
-  )
-
   return (
     <div className='white_card-section-container'>
       <div className='students-section-inner'>
-
         {renderAddNewDestination()}
-
-        {renderToggle()}
-
-        {selectedTab === 'schools' ? renderSchoolTitles() : renderCompanyTitles()}
-
-        {selectedTab === 'schools' ? renderSchoolRows() : renderCompanyRows()}
-          
+        {renderSchoolTitles()}
+        {renderSchoolRows()}
       </div>
     </div>
   )
